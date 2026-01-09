@@ -12,10 +12,9 @@ import MyAds from './pages/MyAds';
 const App = () => {
   return (
     <Routes>
-      <Route path="/" element={<Home />} />
+      <Route path="/reset-password/:token" element={<ResetPassword />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
-      <Route path="/reset-password/:token" element={<ResetPassword />} />
       <Route path="/ads/:id" element={<AdDetails />} />
       <Route
         path="/favorites"
@@ -41,6 +40,7 @@ const App = () => {
           </ProtectedRoute>
         }
       />
+      <Route path="/" element={<Home />} />
     </Routes>
   );
 };
