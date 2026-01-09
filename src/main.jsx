@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
+import { HashRouter } from 'react-router-dom'
 import { AuthProvider } from './auth/AuthContext'
 import { FavoritesProvider } from './context/FavoritesContext.jsx'
 import { ToastProvider } from './components/ToastProvider'
@@ -10,7 +10,7 @@ import App from './App.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <BrowserRouter>
+    <HashRouter>
       <ApiStatusProvider>
         <ToastProvider>
           <AuthProvider>
@@ -20,6 +20,6 @@ createRoot(document.getElementById('root')).render(
           </AuthProvider>
         </ToastProvider>
       </ApiStatusProvider>
-    </BrowserRouter>
+    </HashRouter>
   </StrictMode>,
 )
