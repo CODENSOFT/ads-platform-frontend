@@ -9,6 +9,10 @@ export const login = (data) => {
   return api.post('/api/auth/login', data);
 };
 
+export const forgotPassword = (data) => {
+  return api.post('/api/auth/forgot-password', data);
+};
+
 export const resetPassword = (token, data) => {
   return api.post(`/api/auth/reset-password/${token}`, data);
 };

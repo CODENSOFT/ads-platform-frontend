@@ -5,9 +5,11 @@ const ProtectedRoute = () => {
   const { user } = useAuth();
   const location = useLocation();
   
-  // Always allow access to reset-password route, even when logged in
-  // This bypass ensures reset-password is never blocked
-  if (location.pathname.startsWith('/reset-password/')) {
+  // Always allow access to reset/forgot-password routes, even when logged in
+  // This bypass ensures these routes are never blocked
+  const bypass = location.pathname.startsWith('/reset-password/') || 
+                 location.pathname.startsWith('/forgot-password');
+  if (bypass) {
     return <Outlet />;
   }
   

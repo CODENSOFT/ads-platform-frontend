@@ -45,8 +45,10 @@ const Register = () => {
 
       loginSuccess({ token, user });
       success('Account created');
-      // Don't redirect if on reset-password route
-      if (!location.pathname.startsWith('/reset-password/')) {
+      // Don't redirect if on reset/forgot-password routes
+      const bypass = location.pathname.startsWith('/reset-password/') || 
+                     location.pathname.startsWith('/forgot-password');
+      if (!bypass) {
         navigate('/');
       }
     } catch (err) {

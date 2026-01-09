@@ -44,8 +44,10 @@ const Login = () => {
 
       loginSuccess({ token, user });
       success('Logged in');
-      // Don't redirect if on reset-password route
-      if (!location.pathname.startsWith('/reset-password/')) {
+      // Don't redirect if on reset/forgot-password routes
+      const bypass = location.pathname.startsWith('/reset-password/') || 
+                     location.pathname.startsWith('/forgot-password');
+      if (!bypass) {
         navigate('/');
       }
     } catch (err) {
@@ -80,6 +82,11 @@ const Login = () => {
             onChange={(e) => setPassword(e.target.value)}
             disabled={loading}
           />
+        </div>
+        <div style={{ marginTop: '8px', marginBottom: '8px' }}>
+          <Link to="/forgot-password" style={{ fontSize: '14px', color: '#007bff' }}>
+            Forgot password?
+          </Link>
         </div>
         {error && <div style={{ color: 'red' }}>{error}</div>}
         <button type="submit" disabled={loading}>
