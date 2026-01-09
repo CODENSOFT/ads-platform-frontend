@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { register } from '../api/endpoints';
 import { useToast } from '../hooks/useToast';
@@ -12,6 +12,7 @@ const Register = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { loginSuccess } = useAuth();
   const { success, error: showError } = useToast();
 
@@ -44,7 +45,10 @@ const Register = () => {
 
       loginSuccess({ token, user });
       success('Account created');
-      navigate('/');
+      // Don't redirect if on reset-password route
+      if (!location.pathname.startsWith('/reset-password/')) {
+        navigate('/');
+      }
     } catch (err) {
       const errorMessage = parseError(err);
       setError(errorMessage);

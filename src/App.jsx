@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './auth/ProtectedRoute';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -12,35 +12,24 @@ import MyAds from './pages/MyAds';
 const App = () => {
   return (
     <Routes>
+      {/* ✅ PUBLIC ROUTES (top-level) */}
       <Route path="/reset-password/:token" element={<ResetPassword />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/ads/:id" element={<AdDetails />} />
-      <Route
-        path="/favorites"
-        element={
-          <ProtectedRoute>
-            <Favorites />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/create"
-        element={
-          <ProtectedRoute>
-            <CreateAd />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/my-ads"
-        element={
-          <ProtectedRoute>
-            <MyAds />
-          </ProtectedRoute>
-        }
-      />
+      
+      {/* ✅ PUBLIC HOME */}
       <Route path="/" element={<Home />} />
+      
+      {/* ✅ PROTECTED ROUTES (grouped) */}
+      <Route element={<ProtectedRoute />}>
+        <Route path="/favorites" element={<Favorites />} />
+        <Route path="/create" element={<CreateAd />} />
+        <Route path="/my-ads" element={<MyAds />} />
+      </Route>
+      
+      {/* ✅ Catch-all LAST */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 };
