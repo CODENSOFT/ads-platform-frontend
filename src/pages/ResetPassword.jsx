@@ -15,6 +15,10 @@ const ResetPassword = () => {
   const [success, setSuccess] = useState(false);
   const { success: showSuccess, error: showError } = useToast();
 
+  // Get and clean API URL
+  const API = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+  const isApiMissing = !API;
+
   const validate = () => {
     const errors = {};
 
@@ -48,18 +52,14 @@ const ResetPassword = () => {
       return;
     }
 
+    if (isApiMissing) {
+      setError('Missing VITE_API_URL');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // Get API base URL from environment
-      const API = import.meta.env.VITE_API_URL || "http://localhost:5001";
-      const url = `${API}/api/auth/reset-password/${token}`;
-      
-      // Debug logs
-      console.log("[RESET] API:", API);
-      console.log("[RESET] URL:", url);
-      console.log("[RESET] METHOD: POST");
-      
       await resetPassword(token, { password: newPassword });
       
       setSuccess(true);
@@ -98,7 +98,12 @@ const ResetPassword = () => {
 
   return (
     <div style={{ maxWidth: '400px', margin: '0 auto', padding: '20px' }}>
-      <h1>Reset Password</h1>
+      <h1>Reset password</h1>
+      {isApiMissing && (
+        <div style={{ color: 'red', marginBottom: '16px', padding: '8px', backgroundColor: '#ffe6e6', borderRadius: '4px' }}>
+          Missing VITE_API_URL
+        </div>
+      )}
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: '16px' }}>
           <label htmlFor="newPassword" style={{ display: 'block', marginBottom: '4px' }}>
@@ -164,19 +169,19 @@ const ResetPassword = () => {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || isApiMissing}
           style={{
             width: '100%',
             padding: '10px',
             fontSize: '16px',
-            backgroundColor: loading ? '#ccc' : '#007bff',
+            backgroundColor: (loading || isApiMissing) ? '#ccc' : '#007bff',
             color: 'white',
             border: 'none',
             borderRadius: '4px',
-            cursor: loading ? 'not-allowed' : 'pointer',
+            cursor: (loading || isApiMissing) ? 'not-allowed' : 'pointer',
           }}
         >
-          {loading ? 'Resetting...' : 'Reset Password'}
+          {loading ? 'Resetting...' : 'Reset'}
         </button>
       </form>
     </div>
