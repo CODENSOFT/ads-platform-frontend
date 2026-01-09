@@ -51,6 +51,15 @@ const ResetPassword = () => {
     setLoading(true);
 
     try {
+      // Get API base URL from environment
+      const API = import.meta.env.VITE_API_URL || "http://localhost:5001";
+      const url = `${API}/api/auth/reset-password/${token}`;
+      
+      // Debug logs
+      console.log("[RESET] API:", API);
+      console.log("[RESET] URL:", url);
+      console.log("[RESET] METHOD: POST");
+      
       await resetPassword(token, { password: newPassword });
       
       setSuccess(true);
