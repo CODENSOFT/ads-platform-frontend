@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { resetPassword } from '../api/endpoints';
 import { useToast } from '../hooks/useToast';
 import { parseError } from '../utils/errorParser';
@@ -51,6 +51,11 @@ const ResetPassword = () => {
       return;
     }
 
+    if (password.length > 128) {
+      setError('Password must be less than 128 characters');
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -83,6 +88,9 @@ const ResetPassword = () => {
         <div style={{ color: 'green', marginBottom: '16px' }}>
           Your password has been reset successfully. Redirecting to login...
         </div>
+        <p>
+          <Link to="/login">Go to Login</Link>
+        </p>
       </div>
     );
   }
@@ -118,6 +126,9 @@ const ResetPassword = () => {
           {loading ? 'Resetting...' : 'Reset Password'}
         </button>
       </form>
+      <p style={{ marginTop: '16px' }}>
+        <Link to="/login">Back to Login</Link>
+      </p>
     </div>
   );
 };
