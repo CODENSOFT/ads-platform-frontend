@@ -1,7 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { HashRouter } from 'react-router-dom'
-import { AuthProvider } from './auth/AuthContext'
+import { AuthProvider } from './auth/AuthContext.js'
 import { FavoritesProvider } from './context/FavoritesContext.jsx'
 import { ToastProvider } from './components/ToastProvider'
 import { ApiStatusProvider } from './components/ApiStatusProvider'

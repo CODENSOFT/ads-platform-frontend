@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../auth/AuthContext.js';
 import { getFavorites, addFavorite as addFavoriteAPI, removeFavorite as removeFavoriteAPI } from '../api/endpoints';
 import { FavoritesContext } from './FavoritesContext';
 
