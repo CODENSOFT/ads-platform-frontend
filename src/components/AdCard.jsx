@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../auth/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { useFavorites } from '../hooks/useFavorites';
 import { useToast } from '../hooks/useToast';
 import { parseError } from '../utils/errorParser';

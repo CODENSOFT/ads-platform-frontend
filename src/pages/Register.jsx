@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { useAuth } from '../auth/AuthContext';
+import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 import { useFavorites } from '../hooks/useFavorites';
 import { register } from '../api/endpoints';
 import { useToast } from '../hooks/useToast';
@@ -13,7 +13,6 @@ const Register = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const location = useLocation();
   const { loginSuccess } = useAuth();
   const { loadFavorites } = useFavorites();
   const { success, error: showError } = useToast();
@@ -50,9 +49,9 @@ const Register = () => {
       await loadFavorites();
       success('Account created');
       // Don't redirect if on reset/forgot-password routes
-      const bypass = location.pathname.startsWith('/reset-password/') || 
-                     location.pathname.startsWith('/forgot-password');
-      if (!bypass) {
+      const hash = window.location.hash || '';
+      const isResetFlow = hash.startsWith('#/reset-password') || hash.startsWith('#/forgot-password');
+      if (!isResetFlow) {
         navigate('/');
       }
     } catch (err) {

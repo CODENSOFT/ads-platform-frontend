@@ -1,49 +1,58 @@
-import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { resetPassword } from '../api/endpoints';
 import { useToast } from '../hooks/useToast';
 import { parseError } from '../utils/errorParser';
 
 const ResetPassword = () => {
-  const { token } = useParams();
-  const navigate = useNavigate();
-  const [newPassword, setNewPassword] = useState('');
+  const { token: tokenFromParams } = useParams();
+  const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
-  const [validationErrors, setValidationErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const navigate = useNavigate();
   const { success: showSuccess, error: showError } = useToast();
 
-  // Get and clean API URL
-  const API = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
-  const isApiMissing = !API;
+  // Extract token from params or hash
+  const token = tokenFromParams || (() => {
+    const hash = window.location.hash || '';
+    const match = hash.match(/#\/reset-password\/(.+)/);
+    return match ? match[1] : null;
+  })();
 
-  const validate = () => {
-    const errors = {};
-
-    // Password: min 6 chars
-    if (!newPassword || newPassword.length < 6) {
-      errors.newPassword = 'Password must be at least 6 characters';
+  useEffect(() => {
+    if (!token) {
+      setError('Invalid reset token');
     }
+  }, [token]);
 
-    // Confirm password: must match
-    if (!confirmPassword) {
-      errors.confirmPassword = 'Please confirm your password';
-    } else if (newPassword !== confirmPassword) {
-      errors.confirmPassword = 'Passwords do not match';
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => {
+        navigate('/login');
+      }, 2000);
+      return () => clearTimeout(timer);
     }
-
-    setValidationErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
+  }, [success, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setValidationErrors({});
 
-    if (!validate()) {
+    // Validation
+    if (!password || !confirmPassword) {
+      setError('Both password fields are required');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
       return;
     }
 
@@ -52,18 +61,12 @@ const ResetPassword = () => {
       return;
     }
 
-    if (isApiMissing) {
-      setError('Missing VITE_API_URL');
-      return;
-    }
-
     setLoading(true);
 
     try {
-      await resetPassword(token, { password: newPassword });
-      
+      await resetPassword(token, { password });
       setSuccess(true);
-      showSuccess('Password reset successfully');
+      showSuccess('Password reset successfully. Redirecting to login...');
     } catch (err) {
       const errorMessage = parseError(err);
       setError(errorMessage);
@@ -75,113 +78,44 @@ const ResetPassword = () => {
 
   if (success) {
     return (
-      <div style={{ maxWidth: '400px', margin: '0 auto', padding: '20px' }}>
+      <div>
         <h1>Password Reset Successful</h1>
-        <p style={{ marginBottom: '20px' }}>Your password has been reset successfully.</p>
-        <button
-          onClick={() => navigate('/login')}
-          style={{
-            padding: '10px 20px',
-            backgroundColor: '#007bff',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            fontSize: '16px',
-            cursor: 'pointer',
-          }}
-        >
-          Go to Login
-        </button>
+        <div style={{ color: 'green', marginBottom: '16px' }}>
+          Your password has been reset successfully. Redirecting to login...
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ maxWidth: '400px', margin: '0 auto', padding: '20px' }}>
-      <h1>Reset password</h1>
-      {isApiMissing && (
-        <div style={{ color: 'red', marginBottom: '16px', padding: '8px', backgroundColor: '#ffe6e6', borderRadius: '4px' }}>
-          Missing VITE_API_URL
-        </div>
-      )}
+    <div>
+      <h1>Reset Password</h1>
       <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: '16px' }}>
-          <label htmlFor="newPassword" style={{ display: 'block', marginBottom: '4px' }}>
-            New Password (min 6 characters):
-          </label>
+        <div>
+          <label htmlFor="password">New Password:</label>
           <input
             type="password"
-            id="newPassword"
-            value={newPassword}
-            onChange={(e) => {
-              setNewPassword(e.target.value);
-              setValidationErrors((prev) => ({ ...prev, newPassword: null }));
-            }}
+            id="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
             disabled={loading}
-            style={{
-              width: '100%',
-              padding: '8px',
-              fontSize: '16px',
-              border: validationErrors.newPassword ? '1px solid red' : '1px solid #ddd',
-              borderRadius: '4px',
-            }}
+            minLength={6}
           />
-          {validationErrors.newPassword && (
-            <div style={{ color: 'red', fontSize: '12px', marginTop: '4px' }}>
-              {validationErrors.newPassword}
-            </div>
-          )}
         </div>
-
-        <div style={{ marginBottom: '16px' }}>
-          <label htmlFor="confirmPassword" style={{ display: 'block', marginBottom: '4px' }}>
-            Confirm Password:
-          </label>
+        <div>
+          <label htmlFor="confirmPassword">Confirm Password:</label>
           <input
             type="password"
             id="confirmPassword"
             value={confirmPassword}
-            onChange={(e) => {
-              setConfirmPassword(e.target.value);
-              setValidationErrors((prev) => ({ ...prev, confirmPassword: null }));
-            }}
+            onChange={(e) => setConfirmPassword(e.target.value)}
             disabled={loading}
-            style={{
-              width: '100%',
-              padding: '8px',
-              fontSize: '16px',
-              border: validationErrors.confirmPassword ? '1px solid red' : '1px solid #ddd',
-              borderRadius: '4px',
-            }}
+            minLength={6}
           />
-          {validationErrors.confirmPassword && (
-            <div style={{ color: 'red', fontSize: '12px', marginTop: '4px' }}>
-              {validationErrors.confirmPassword}
-            </div>
-          )}
         </div>
-
-        {error && (
-          <div style={{ color: 'red', marginBottom: '16px', padding: '8px', backgroundColor: '#ffe6e6', borderRadius: '4px' }}>
-            {error}
-          </div>
-        )}
-
-        <button
-          type="submit"
-          disabled={loading || isApiMissing}
-          style={{
-            width: '100%',
-            padding: '10px',
-            fontSize: '16px',
-            backgroundColor: (loading || isApiMissing) ? '#ccc' : '#007bff',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: (loading || isApiMissing) ? 'not-allowed' : 'pointer',
-          }}
-        >
-          {loading ? 'Resetting...' : 'Reset'}
+        {error && <div style={{ color: 'red' }}>{error}</div>}
+        <button type="submit" disabled={loading}>
+          {loading ? 'Resetting...' : 'Reset Password'}
         </button>
       </form>
     </div>
@@ -189,4 +123,3 @@ const ResetPassword = () => {
 };
 
 export default ResetPassword;
-

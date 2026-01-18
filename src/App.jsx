@@ -1,4 +1,5 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import ProtectedRoute from './auth/ProtectedRoute';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -10,29 +11,86 @@ import Favorites from './pages/Favorites';
 import CreateAd from './pages/CreateAd';
 import MyAds from './pages/MyAds';
 
+const CatchAllRedirect = () => {
+  return <Navigate to="/" replace />;
+};
+
 const App = () => {
+  const location = useLocation();
+  const [forceReset, setForceReset] = useState(false);
+  const [forceForgot, setForceForgot] = useState(false);
+
+  // Check hash directly on mount and on location change
+  useEffect(() => {
+    const hash = window.location.hash || '';
+    const pathname = window.location.pathname;
+    
+    // Check if we're on reset password route
+    const resetMatch = hash.match(/#\/reset-password\/(.+)/) || pathname.match(/\/reset-password\/(.+)/);
+    const forgotMatch = hash.includes('#/forgot-password') || pathname.includes('/forgot-password');
+    
+    if (resetMatch && resetMatch[1]) {
+      setForceReset(true);
+      setForceForgot(false);
+    } else if (forgotMatch) {
+      setForceForgot(true);
+      setForceReset(false);
+    } else {
+      setForceReset(false);
+      setForceForgot(false);
+    }
+  }, [location]);
+
+  // Handle external links without hash (from Railway emails)
+  useEffect(() => {
+    const pathname = window.location.pathname;
+    const hash = window.location.hash;
+    
+    // If we have a pathname but no hash (or empty hash), convert it to hash routing
+    if (pathname && pathname !== '/' && (!hash || hash === '#')) {
+      // Extract the path and convert to hash format
+      const hashPath = pathname.startsWith('/') ? pathname : `/${pathname}`;
+      window.location.hash = hashPath;
+    }
+  }, []); // Run only once on mount
+
+  // If we detect reset password in hash but route didn't match, render directly
+  if (forceReset) {
+    return <ResetPassword />;
+  }
+  
+  if (forceForgot) {
+    return <ForgotPassword />;
+  }
+
   return (
-    <Routes>
-      {/* ✅ PUBLIC ROUTES (top-level) */}
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/reset-password/:token" element={<ResetPassword />} />
-      <Route path="/ads/:id" element={<AdDetails />} />
-      
-      {/* ✅ PUBLIC HOME */}
-      <Route path="/" element={<Home />} />
-      
-      {/* ✅ PROTECTED ROUTES (grouped) */}
-      <Route element={<ProtectedRoute />}>
-        <Route path="/favorites" element={<Favorites />} />
-        <Route path="/create" element={<CreateAd />} />
-        <Route path="/my-ads" element={<MyAds />} />
-      </Route>
-      
-      {/* ✅ Catch-all LAST */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <>
+      <Routes>
+        {/* ✅ PUBLIC ROUTES (top-level) - ORDER MATTERS! */}
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/ads/:id" element={<AdDetails />} />
+        
+        {/* ✅ PUBLIC HOME */}
+        <Route path="/" element={<Home />} />
+        
+        {/* ✅ PROTECTED ROUTES (grouped) */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/favorites" element={<Favorites />} />
+          <Route path="/create" element={<CreateAd />} />
+          <Route path="/my-ads" element={<MyAds />} />
+        </Route>
+        
+        {/* ✅ Catch-all LAST */}
+        <Route path="*" element={<CatchAllRedirect />} />
+      </Routes>
+      {/* Build stamp */}
+      <div style={{ position: 'fixed', bottom: '8px', left: '8px', fontSize: '10px', color: '#666', zIndex: 9999 }}>
+        build: HASH_RESET_OK_1
+      </div>
+    </>
   );
 };
 

@@ -15,7 +15,7 @@ createRoot(document.getElementById('root')).render(
         <ToastProvider>
           <AuthProvider>
             <FavoritesProvider>
-              <App />
+    <App />
             </FavoritesProvider>
           </AuthProvider>
         </ToastProvider>
