@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { resetPassword } from '../api/endpoints';
 import { useToast } from '../hooks/useToast';
 import { parseError } from '../utils/errorParser';
+import { useAuth } from '../auth/authContextBase.js';
 
 const ResetPassword = () => {
   const { token: tokenFromParams } = useParams();
@@ -12,6 +13,7 @@ const ResetPassword = () => {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const { success: showSuccess, error: showError } = useToast();
+  const { logout } = useAuth();
 
   // Extract token from params or hash
   const token = tokenFromParams || (() => {
@@ -29,12 +31,19 @@ const ResetPassword = () => {
   useEffect(() => {
     if (success) {
       const timer = setTimeout(() => {
-        // Use window.location.hash for reliable redirect with HashRouter on Vercel
-        window.location.hash = '#/login';
+        // Clear auth state before redirecting to login
+        logout();
+        // Use window.location.replace for reliable redirect with HashRouter on Vercel
+        window.location.replace(`${window.location.origin}/#/login`);
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [success]);
+  }, [success, logout]);
+
+  const handleRedirectToLogin = () => {
+    logout();
+    window.location.replace(`${window.location.origin}/#/login`);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -89,7 +98,21 @@ const ResetPassword = () => {
           Your password has been reset successfully. Redirecting to login...
         </div>
         <p>
-          <Link to="/login">Go to Login</Link>
+          <button 
+            type="button" 
+            onClick={handleRedirectToLogin}
+            style={{ 
+              background: 'none', 
+              border: 'none', 
+              color: '#007bff', 
+              cursor: 'pointer', 
+              textDecoration: 'underline',
+              padding: 0,
+              fontSize: 'inherit'
+            }}
+          >
+            Go to Login
+          </button>
         </p>
       </div>
     );
@@ -127,7 +150,21 @@ const ResetPassword = () => {
         </button>
       </form>
       <p style={{ marginTop: '16px' }}>
-        <Link to="/login">Back to Login</Link>
+        <button 
+          type="button" 
+          onClick={handleRedirectToLogin}
+          style={{ 
+            background: 'none', 
+            border: 'none', 
+            color: '#007bff', 
+            cursor: 'pointer', 
+            textDecoration: 'underline',
+            padding: 0,
+            fontSize: 'inherit'
+          }}
+        >
+          Back to Login
+        </button>
       </p>
     </div>
   );
