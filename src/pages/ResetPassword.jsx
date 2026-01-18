@@ -26,25 +26,10 @@ const ResetPassword = () => {
     }
   }, [token]);
 
-  useEffect(() => {
-    if (success) {
-      const timer = setTimeout(() => {
-        // Clear auth session so user isn't stuck in Home due to existing login
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        // Redirect with hard navigation
-        window.location.replace(`${window.location.origin}/#/login`);
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [success]);
-
   const handleRedirectToLogin = () => {
-    // Clear auth session
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    // Redirect with hard navigation
-    window.location.href = `${window.location.origin}/#/login`;
+    window.location.replace(`${window.location.origin}/#/login`);
   };
 
   const handleSubmit = async (e) => {
@@ -81,8 +66,13 @@ const ResetPassword = () => {
 
     try {
       await resetPassword(token, { password });
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
       setSuccess(true);
       showSuccess('Password reset successfully. Redirecting to login...');
+      setTimeout(() => {
+        window.location.replace(`${window.location.origin}/#/login`);
+      }, 800);
     } catch (err) {
       const errorMessage = parseError(err);
       setError(errorMessage);
