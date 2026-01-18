@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { resetPassword } from '../api/endpoints';
 import { useToast } from '../hooks/useToast';
 import { parseError } from '../utils/errorParser';
 
 const ResetPassword = () => {
   const { token: tokenFromParams } = useParams();
+  const navigate = useNavigate();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -29,7 +30,8 @@ const ResetPassword = () => {
   const handleRedirectToLogin = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    window.location.replace(`${window.location.origin}/#/login`);
+    navigate('/login', { replace: true });
+    setTimeout(() => { window.location.hash = '#/login'; }, 0);
   };
 
   const handleSubmit = async (e) => {
@@ -70,9 +72,11 @@ const ResetPassword = () => {
       localStorage.removeItem('user');
       setSuccess(true);
       showSuccess('Password reset successfully. Redirecting to login...');
+      navigate('/login', { replace: true });
+      setTimeout(() => { window.location.hash = '#/login'; }, 0);
       setTimeout(() => {
-        window.location.replace(`${window.location.origin}/#/login`);
-      }, 800);
+        if (!window.location.hash.includes('/login')) window.location.hash = '#/login';
+      }, 50);
     } catch (err) {
       const errorMessage = parseError(err);
       setError(errorMessage);
