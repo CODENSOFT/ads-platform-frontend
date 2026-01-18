@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './auth/ProtectedRoute';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -16,30 +16,17 @@ const CatchAllRedirect = () => {
 };
 
 const App = () => {
-  const location = useLocation();
-  const [forceReset, setForceReset] = useState(false);
-  const [forceForgot, setForceForgot] = useState(false);
 
-  // Check hash directly on mount and on location change
-  useEffect(() => {
-    const hash = window.location.hash || '';
-    const pathname = window.location.pathname;
-    
-    // Check if we're on reset password route
-    const resetMatch = hash.match(/#\/reset-password\/(.+)/) || pathname.match(/\/reset-password\/(.+)/);
-    const forgotMatch = hash.includes('#/forgot-password') || pathname.includes('/forgot-password');
-    
-    if (resetMatch && resetMatch[1]) {
-      setForceReset(true);
-      setForceForgot(false);
-    } else if (forgotMatch) {
-      setForceForgot(true);
-      setForceReset(false);
-    } else {
-      setForceReset(false);
-      setForceForgot(false);
-    }
-  }, [location]);
+  // Check hash directly based on current location (computed on each render)
+  const hash = window.location.hash || '';
+  const pathname = window.location.pathname;
+  
+  // Check if we're on reset password route
+  const resetMatch = hash.match(/#\/reset-password\/(.+)/) || pathname.match(/\/reset-password\/(.+)/);
+  const forgotMatch = hash.includes('#/forgot-password') || pathname.includes('/forgot-password');
+  
+  const forceReset = !!(resetMatch && resetMatch[1]);
+  const forceForgot = !!forgotMatch;
 
   // Handle external links without hash (from Railway emails)
   useEffect(() => {
@@ -88,7 +75,7 @@ const App = () => {
       </Routes>
       {/* Build stamp */}
       <div style={{ position: 'fixed', bottom: '8px', left: '8px', fontSize: '10px', color: '#666', zIndex: 9999 }}>
-        build: HASH_RESET_OK_1
+        build: VERCEL_RESET_FIX_1
       </div>
     </>
   );
