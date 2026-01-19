@@ -1,22 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 const FiltersBar = ({ initialValues = {}, onApply, onReset }) => {
-  const [filters, setFilters] = useState({
+  // Create initial filters from initialValues (only used for initial state)
+  const getInitialFilters = () => ({
     q: initialValues.q || '',
     minPrice: initialValues.minPrice || '',
     maxPrice: initialValues.maxPrice || '',
     currency: initialValues.currency || '',
   });
 
-  // Update filters when initialValues change
-  useEffect(() => {
-    setFilters({
-      q: initialValues.q || '',
-      minPrice: initialValues.minPrice || '',
-      maxPrice: initialValues.maxPrice || '',
-      currency: initialValues.currency || '',
-    });
-  }, [initialValues]);
+  // Use lazy initialization - state is only set once on mount
+  // If parent needs to reset filters, it should remount this component with a key
+  const [filters, setFilters] = useState(getInitialFilters);
 
   const handleChange = (field, value) => {
     setFilters((prev) => ({
