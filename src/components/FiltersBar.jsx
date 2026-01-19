@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { getCategories } from '../api/endpoints';
 
 const FiltersBar = ({ initialValues = {}, onApply, onReset }) => {
   // Create initial filters from initialValues (only used for initial state)
@@ -7,17 +8,53 @@ const FiltersBar = ({ initialValues = {}, onApply, onReset }) => {
     minPrice: initialValues.minPrice || '',
     maxPrice: initialValues.maxPrice || '',
     currency: initialValues.currency || '',
+    category: initialValues.category || '',
+    subCategory: initialValues.subCategory || '',
   });
 
   // Use lazy initialization - state is only set once on mount
   // If parent needs to reset filters, it should remount this component with a key
   const [filters, setFilters] = useState(getInitialFilters);
+  
+  // Categories state
+  const [categories, setCategories] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+
+  // Fetch categories on mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setLoadingCategories(true);
+        const response = await getCategories();
+        const categoriesData = response.data?.categories || response.data?.data || response.data || [];
+        setCategories(Array.isArray(categoriesData) ? categoriesData : []);
+      } catch (err) {
+        console.error('Failed to load categories:', err);
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  // Get available subcategories for selected category
+  const selectedCategory = categories.find(cat => cat.slug === filters.category);
+  const availableSubcategories = selectedCategory?.subcategories || [];
 
   const handleChange = (field, value) => {
-    setFilters((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    if (field === 'category') {
+      // Reset subcategory when category changes
+      setFilters((prev) => ({
+        ...prev,
+        category: value,
+        subCategory: '',
+      }));
+    } else {
+      setFilters((prev) => ({
+        ...prev,
+        [field]: value,
+      }));
+    }
   };
 
   const handleApply = () => {
@@ -35,6 +72,12 @@ const FiltersBar = ({ initialValues = {}, onApply, onReset }) => {
     if (filters.currency && filters.currency.trim() !== '') {
       values.currency = filters.currency;
     }
+    if (filters.category && filters.category.trim() !== '') {
+      values.category = filters.category;
+    }
+    if (filters.subCategory && filters.subCategory.trim() !== '') {
+      values.subCategory = filters.subCategory;
+    }
     onApply(values);
   };
 
@@ -44,6 +87,8 @@ const FiltersBar = ({ initialValues = {}, onApply, onReset }) => {
       minPrice: '',
       maxPrice: '',
       currency: '',
+      category: '',
+      subCategory: '',
     });
     onReset();
   };
@@ -115,6 +160,46 @@ const FiltersBar = ({ initialValues = {}, onApply, onReset }) => {
             <option value="MDL">MDL</option>
           </select>
         </div>
+
+        <div>
+          <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500', color: '#333' }}>
+            Category
+          </label>
+          <select
+            value={filters.category}
+            onChange={(e) => handleChange('category', e.target.value)}
+            disabled={loadingCategories}
+            style={{ width: '100%' }}
+          >
+            <option value="">All Categories</option>
+            {categories.map((cat) => (
+              <option key={cat.slug} value={cat.slug}>
+                {cat.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {filters.category && (
+          <div>
+            <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500', color: '#333' }}>
+              Subcategory
+            </label>
+            <select
+              value={filters.subCategory}
+              onChange={(e) => handleChange('subCategory', e.target.value)}
+              disabled={loadingCategories || !filters.category}
+              style={{ width: '100%' }}
+            >
+              <option value="">All Subcategories</option>
+              {availableSubcategories.map((subCat) => (
+                <option key={subCat.slug} value={subCat.slug}>
+                  {subCat.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div style={{ display: 'flex', gap: '8px' }}>
           <button

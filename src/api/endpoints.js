@@ -58,3 +58,8 @@ export const removeFavorite = (adId) => {
   return api.delete(`/favorites/${adId}`);
 };
 
+// CATEGORIES endpoints
+export const getCategories = () => {
+  return api.get('/categories');
+};
+

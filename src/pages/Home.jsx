@@ -15,6 +15,8 @@ const Home = () => {
     minPrice: '',
     maxPrice: '',
     currency: '',
+    category: '',
+    subCategory: '',
   });
   const [pagination, setPagination] = useState({
     page: 1,
@@ -114,6 +116,8 @@ const Home = () => {
       minPrice: values.minPrice || '',
       maxPrice: values.maxPrice || '',
       currency: values.currency || '',
+      category: values.category || '',
+      subCategory: values.subCategory || '',
     });
 
     // Build params object - OMIT empty values
@@ -139,6 +143,16 @@ const Home = () => {
       params.currency = values.currency;
     }
 
+    // category: include only if category is not empty
+    if (values.category && values.category.trim() !== '') {
+      params.category = values.category;
+    }
+
+    // subCategory: include only if subCategory is not empty
+    if (values.subCategory && values.subCategory.trim() !== '') {
+      params.subCategory = values.subCategory;
+    }
+
     // Reset page to 1 when applying filters, then fetch
     fetchAds(params, 1, pagination.limit);
   };
@@ -150,6 +164,8 @@ const Home = () => {
       minPrice: '',
       maxPrice: '',
       currency: '',
+      category: '',
+      subCategory: '',
     });
 
     // Clear any validation errors
@@ -176,6 +192,12 @@ const Home = () => {
     }
     if (filters.currency && filters.currency.trim() !== '') {
       params.currency = filters.currency;
+    }
+    if (filters.category && filters.category.trim() !== '') {
+      params.category = filters.category;
+    }
+    if (filters.subCategory && filters.subCategory.trim() !== '') {
+      params.subCategory = filters.subCategory;
     }
     
     fetchAds(params, newPage, pagination.limit);
@@ -269,6 +291,16 @@ const Home = () => {
                     {pagination.page} / {pagination.pages}
                   </strong>
                 </div>
+                {(filters.category || filters.subCategory) && (
+                  <div>
+                    <span style={{ color: '#666', fontSize: '14px' }}>Filter: </span>
+                    <strong style={{ color: '#007bff', fontSize: '16px' }}>
+                      {filters.subCategory 
+                        ? `${filters.category} / ${filters.subCategory}`
+                        : filters.category}
+                    </strong>
+                  </div>
+                )}
               </div>
               <button
                 onClick={() => fetchAds({}, pagination.page, pagination.limit)}
