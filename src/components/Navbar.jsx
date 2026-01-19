@@ -1,8 +1,10 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth.js';
+import { useChatNotifications } from '../hooks/useChatNotifications.js';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
+  const { unreadCount } = useChatNotifications();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -98,9 +100,31 @@ const Navbar = () => {
                   textDecoration: 'none',
                   fontSize: '14px',
                   fontWeight: '500',
+                  position: 'relative',
                 }}
               >
                 💬 Messages
+                {unreadCount > 0 && (
+                  <span style={{
+                    position: 'absolute',
+                    top: '6px',
+                    right: '8px',
+                    minWidth: '18px',
+                    height: '18px',
+                    padding: '0 4px',
+                    borderRadius: '9px',
+                    fontSize: '11px',
+                    fontWeight: '600',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: '#dc3545',
+                    color: 'white',
+                    lineHeight: '1',
+                  }}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
               </Link>
               <div style={{
                 display: 'flex',

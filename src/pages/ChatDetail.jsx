@@ -4,12 +4,14 @@ import { getMessages, sendMessage } from '../api/chat';
 import { useToast } from '../hooks/useToast';
 import { parseError } from '../utils/errorParser';
 import { useAuth } from '../auth/useAuth.js';
+import { useChatNotifications } from '../hooks/useChatNotifications.js';
 
 const ChatDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { error: showError } = useToast();
+  const { refreshUnreadCount } = useChatNotifications();
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -26,6 +28,9 @@ const ChatDetail = () => {
       const response = await getMessages(id);
       const messagesData = response.data?.messages || response.data?.data || response.data || [];
       setMessages(Array.isArray(messagesData) ? messagesData : []);
+      // Refresh unread count after successfully fetching messages
+      // Backend marks messages as read when fetching
+      refreshUnreadCount();
     } catch (err) {
       const errorMessage = parseError(err);
       showError(errorMessage);

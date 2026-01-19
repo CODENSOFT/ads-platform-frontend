@@ -16,3 +16,12 @@ export const sendMessage = (conversationId, text) => {
   return api.post(`/chats/${conversationId}/messages`, { text });
 };
 
+export const getUnreadCount = () => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    // Return a promise that resolves to 0 if no token
+    return Promise.resolve({ data: { count: 0 } });
+  }
+  return api.get('/chats/unread-count');
+};
+
