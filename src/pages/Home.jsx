@@ -62,8 +62,8 @@ const Home = () => {
       let finalAds = Array.isArray(adsArray) ? adsArray : [];
       
       // Local filtering fallback if backend doesn't support category filter
-      if (filterParams.category) {
-        const categorySlug = filterParams.category;
+      if (filterParams.categorySlug) {
+        const categorySlug = filterParams.categorySlug;
         finalAds = finalAds.filter((ad) => {
           // Try multiple possible paths for category in ad object
           const adCategory = ad.category?.slug || ad.category || ad.categorySlug;
@@ -72,8 +72,8 @@ const Home = () => {
       }
       
       // Apply subcategory filter if exists (local fallback)
-      if (filterParams.subCategory && finalAds.length > 0) {
-        const subCategorySlug = filterParams.subCategory;
+      if (filterParams.subCategorySlug && finalAds.length > 0) {
+        const subCategorySlug = filterParams.subCategorySlug;
         finalAds = finalAds.filter((ad) => {
           const adSubCategory = ad.subCategory?.slug || ad.subCategory || ad.subCategorySlug;
           return adSubCategory === subCategorySlug;
@@ -165,14 +165,14 @@ const Home = () => {
       params.currency = values.currency;
     }
 
-    // category: include only if category is not empty
-    if (values.category && values.category.trim() !== '') {
-      params.category = values.category;
+    // categorySlug: include only if category is not empty
+    if (values.categorySlug && values.categorySlug.trim() !== '') {
+      params.categorySlug = values.categorySlug;
     }
 
-    // subCategory: include only if subCategory is not empty
-    if (values.subCategory && values.subCategory.trim() !== '') {
-      params.subCategory = values.subCategory;
+    // subCategorySlug: include only if subCategory is not empty
+    if (values.subCategorySlug && values.subCategorySlug.trim() !== '') {
+      params.subCategorySlug = values.subCategorySlug;
     }
 
     // Reset page to 1 when applying filters, then fetch
@@ -216,10 +216,10 @@ const Home = () => {
       params.currency = filters.currency;
     }
     if (filters.category && filters.category.trim() !== '') {
-      params.category = filters.category;
+      params.categorySlug = filters.category; // Backend expects categorySlug
     }
     if (filters.subCategory && filters.subCategory.trim() !== '') {
-      params.subCategory = filters.subCategory;
+      params.subCategorySlug = filters.subCategory; // Backend expects subCategorySlug
     }
     
     fetchAds(params, newPage, pagination.limit);

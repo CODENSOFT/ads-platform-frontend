@@ -55,10 +55,10 @@ const FiltersBar = ({ initialValues = {}, onApply, onReset }) => {
       values.currency = filters.currency;
     }
     if (filters.category && filters.category.trim() !== '') {
-      values.category = filters.category;
+      values.categorySlug = filters.category; // Backend expects categorySlug
     }
     if (filters.subCategory && filters.subCategory.trim() !== '') {
-      values.subCategory = filters.subCategory;
+      values.subCategorySlug = filters.subCategory; // Backend expects subCategorySlug
     }
     onApply(values);
   };
