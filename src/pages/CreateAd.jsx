@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { createAd } from '../api/endpoints';
 import { useToast } from '../hooks/useToast';
 import { parseError } from '../utils/errorParser';
-import { getAllCategories, findCategoryBySlug, isValidCategorySlug, isValidSubCategorySlug } from '../data/categories';
+import useCategories from '../hooks/useCategories';
 
 const CreateAd = () => {
   const navigate = useNavigate();
@@ -17,8 +17,8 @@ const CreateAd = () => {
   const [validationErrors, setValidationErrors] = useState({});
   const { success, error: showError } = useToast();
   
-  // Categories state - use hardcoded categories
-  const categories = getAllCategories();
+  // Categories from API
+  const { categories, loading: loadingCategories, error: categoriesError } = useCategories();
   const [categorySlug, setCategorySlug] = useState('');
   const [subCategorySlug, setSubCategorySlug] = useState('');
 
@@ -77,16 +77,30 @@ const CreateAd = () => {
     }
 
     // Validate category and subcategory before submit
-    if (!isValidCategorySlug(categorySlug)) {
+    if (!categorySlug || !categorySlug.trim()) {
+      showError('Please select a category.');
+      setValidationErrors((prev) => ({ ...prev, category: 'Category is required' }));
+      return;
+    }
+
+    const selectedCategory = categories.find(c => c.slug === categorySlug);
+    if (!selectedCategory) {
       showError('Invalid category selected. Please select a valid category.');
       setValidationErrors((prev) => ({ ...prev, category: 'Invalid category' }));
       return;
     }
 
-    if (subCategorySlug && subCategorySlug.trim() && !isValidSubCategorySlug(categorySlug, subCategorySlug)) {
-      showError('Invalid subcategory for the selected category. Please select a valid subcategory.');
-      setValidationErrors((prev) => ({ ...prev, subCategory: 'Invalid subcategory' }));
-      return;
+    if (subCategorySlug && subCategorySlug.trim()) {
+      const subcategories = selectedCategory.subcategories || selectedCategory.subs || [];
+      const isValidSub = subcategories.some(sub => {
+        const subSlug = sub.slug || sub;
+        return subSlug === subCategorySlug;
+      });
+      if (!isValidSub) {
+        showError('Invalid subcategory for the selected category. Please select a valid subcategory.');
+        setValidationErrors((prev) => ({ ...prev, subCategory: 'Invalid subcategory' }));
+        return;
+      }
     }
 
     setLoading(true);
@@ -103,11 +117,13 @@ const CreateAd = () => {
       formData.append('categorySlug', categorySlug);
       if (subCategorySlug && subCategorySlug.trim()) {
         formData.append('subCategorySlug', subCategorySlug);
+      } else {
+        // Don't send subCategorySlug if empty
       }
 
       // Dev log
       if (import.meta.env.DEV) {
-        console.log('[CREATE_AD] categorySlug:', categorySlug, 'subCategorySlug:', subCategorySlug);
+        console.log('[CREATE_AD] categorySlug:', categorySlug, 'subCategorySlug:', subCategorySlug || 'null');
       }
       
       // Append all images
@@ -136,8 +152,8 @@ const CreateAd = () => {
   };
 
   // Get available subcategories for selected category
-  const selectedCategory = findCategoryBySlug(categorySlug);
-  const availableSubcategories = selectedCategory?.subs || [];
+  const selectedCategory = categories.find(c => c.slug === categorySlug);
+  const availableSubcategories = selectedCategory?.subcategories || selectedCategory?.subs || [];
   
   // Dev log
   if (import.meta.env.DEV && categorySlug) {
@@ -230,7 +246,7 @@ const CreateAd = () => {
             id="category"
             value={categorySlug}
             onChange={handleCategoryChange}
-            disabled={loading}
+            disabled={loading || loadingCategories}
             style={{
               width: '100%',
               padding: '8px',
@@ -239,10 +255,10 @@ const CreateAd = () => {
               borderRadius: '4px',
             }}
           >
-            <option value="">Select Category</option>
+            <option value="">{loadingCategories ? 'Loading categories...' : 'Select Category'}</option>
             {categories.map((cat) => (
               <option key={cat.slug} value={cat.slug}>
-                {cat.label}
+                {cat.name || cat.label}
               </option>
             ))}
           </select>
@@ -262,7 +278,7 @@ const CreateAd = () => {
               id="subCategory"
               value={subCategorySlug}
               onChange={handleSubCategoryChange}
-              disabled={loading || !categorySlug}
+              disabled={loading || loadingCategories || !categorySlug}
               style={{
                 width: '100%',
                 padding: '8px',
@@ -272,11 +288,15 @@ const CreateAd = () => {
               }}
             >
               <option value="">Select Subcategory (optional)</option>
-              {availableSubcategories.map((subCat) => (
-                <option key={subCat.slug} value={subCat.slug}>
-                  {subCat.label}
-                </option>
-              ))}
+              {availableSubcategories.map((subCat) => {
+                const subSlug = subCat.slug || subCat;
+                const subLabel = subCat.name || subCat.label || subCat;
+                return (
+                  <option key={subSlug} value={subSlug}>
+                    {subLabel}
+                  </option>
+                );
+              })}
             </select>
             {validationErrors.subCategory && (
               <div style={{ color: 'red', fontSize: '12px', marginTop: '4px' }}>

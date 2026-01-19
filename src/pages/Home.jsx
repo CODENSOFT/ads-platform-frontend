@@ -4,10 +4,11 @@ import { useAuth } from '../auth/useAuth.js';
 import { getAds } from '../api/endpoints';
 import AdCard from '../components/AdCard';
 import FiltersBar from '../components/FiltersBar';
-import { findCategoryBySlug, findSubcategoryBySlug } from '../data/categories';
+import useCategories from '../hooks/useCategories';
 
 const Home = () => {
   const { user, logout } = useAuth();
+  const { categories } = useCategories(); // For getting category labels
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [ads, setAds] = useState([]);
@@ -314,12 +315,16 @@ const Home = () => {
                   </strong>
                 </div>
                 {(filters.category || filters.subCategory) && (() => {
-                  const category = filters.category ? findCategoryBySlug(filters.category) : null;
+                  const category = filters.category ? categories.find(c => c.slug === filters.category) : null;
+                  const subcategories = category?.subcategories || category?.subs || [];
                   const subCategory = filters.subCategory && filters.category
-                    ? findSubcategoryBySlug(filters.category, filters.subCategory)
+                    ? subcategories.find(sub => {
+                        const subSlug = sub.slug || sub;
+                        return subSlug === filters.subCategory;
+                      })
                     : null;
-                  const categoryLabel = category?.label || filters.category || '';
-                  const subCategoryLabel = subCategory?.label || filters.subCategory || '';
+                  const categoryLabel = category?.name || category?.label || filters.category || '';
+                  const subCategoryLabel = subCategory?.name || subCategory?.label || filters.subCategory || '';
                   
                   return (
                     <div>
