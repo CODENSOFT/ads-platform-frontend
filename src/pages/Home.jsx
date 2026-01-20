@@ -363,8 +363,8 @@ const Home = () => {
             {Array.isArray(ads) && ads.length === 0 ? (
               <div className="card" style={{ textAlign: 'center', padding: '60px 20px' }}>
                 <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔍</div>
-                <h3 style={{ color: '#1a1a1a', marginBottom: '8px' }}>No ads found</h3>
-                <p style={{ color: '#666' }}>Try adjusting your filters to see more results</p>
+                <h3 style={{ color: '#1a1a1a', marginBottom: '8px' }}>Nu s-au găsit rezultate</h3>
+                <p style={{ color: '#666' }}>Încearcă să ajustezi filtrele pentru a vedea mai multe rezultate</p>
               </div>
             ) : Array.isArray(ads) ? (
               <>

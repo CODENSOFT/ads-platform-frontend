@@ -1,9 +1,38 @@
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth.js';
 import ProfileMenu from './ProfileMenu';
 
 const Navbar = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const [searchValue, setSearchValue] = useState('');
+
+  // Sync search input with URL param (for back/forward navigation)
+  useEffect(() => {
+    const searchParam = searchParams.get('search');
+    if (searchParam !== null) {
+      setSearchValue(searchParam);
+    } else if (location.pathname === '/' || location.pathname === '') {
+      // Only clear if we're on home page
+      setSearchValue('');
+    }
+  }, [searchParams, location.pathname]);
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    const trimmedSearch = searchValue.trim();
+    
+    // Navigate to home with search param
+    if (trimmedSearch) {
+      navigate(`/?search=${encodeURIComponent(trimmedSearch)}`);
+    } else {
+      // Clear search if empty
+      navigate('/');
+    }
+  };
 
   return (
     <nav style={{
@@ -36,6 +65,73 @@ const Navbar = () => {
         >
           🏠 AdsPlatform
         </Link>
+
+        {/* Search Input */}
+        <form
+          onSubmit={handleSearchSubmit}
+          style={{
+            flex: 1,
+            maxWidth: '500px',
+            margin: '0 24px',
+            position: 'relative',
+          }}
+        >
+          <div style={{
+            position: 'relative',
+            display: 'flex',
+            alignItems: 'center',
+          }}>
+            <input
+              type="text"
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+              placeholder="Caută anunțuri..."
+              style={{
+                width: '100%',
+                padding: '10px 40px 10px 16px',
+                fontSize: '14px',
+                border: '1px solid #ddd',
+                borderRadius: '24px',
+                outline: 'none',
+                transition: 'border-color 0.2s',
+              }}
+              onFocus={(e) => e.currentTarget.style.borderColor = '#007bff'}
+              onBlur={(e) => e.currentTarget.style.borderColor = '#ddd'}
+            />
+            <button
+              type="submit"
+              style={{
+                position: 'absolute',
+                right: '8px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#666',
+              }}
+              aria-label="Search"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.35-4.35" />
+              </svg>
+            </button>
+          </div>
+        </form>
 
         <div style={{
           display: 'flex',
