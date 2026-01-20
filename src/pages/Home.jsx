@@ -1,25 +1,35 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth.js';
 import { getAds } from '../api/endpoints';
 import AdCard from '../components/AdCard';
 import FiltersBar from '../components/FiltersBar';
 import useCategories from '../hooks/useCategories';
+import { buildAdsQuery } from '../utils/adsQuery';
 
 const Home = () => {
   const { user, logout } = useAuth();
   const { categories } = useCategories(); // For getting category labels
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Initialize filters from URL params or defaults
+  const getInitialFilters = () => {
+    const params = Object.fromEntries(searchParams);
+    return {
+      q: params.search || params.q || '',
+      minPrice: params.minPrice || '',
+      maxPrice: params.maxPrice || '',
+      currency: params.currency || '',
+      category: params.categorySlug || '',
+      subCategory: params.subCategorySlug || '',
+      sort: params.sort || 'newest',
+    };
+  };
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [ads, setAds] = useState([]);
-  const [filters, setFilters] = useState({
-    q: '',
-    minPrice: '',
-    maxPrice: '',
-    currency: '',
-    category: '',
-    subCategory: '',
-  });
+  const [filters, setFilters] = useState(getInitialFilters);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 12,
@@ -34,12 +44,8 @@ const Home = () => {
       setLoading(true);
       setError(null);
       
-      // Combine filters with pagination params
-      const params = {
-        ...filterParams,
-        page,
-        limit,
-      };
+      // Build query params using helper function
+      const params = buildAdsQuery(filterParams, page, limit);
       
       const response = await getAds(params);
       
@@ -110,18 +116,25 @@ const Home = () => {
     }
   }, []);
 
+  // Load initial data from URL params on mount
   useEffect(() => {
-    fetchAds();
-  }, [fetchAds]);
+    const params = buildAdsQuery({
+      search: filters.q,
+      categorySlug: filters.category,
+      subCategorySlug: filters.subCategory,
+      minPrice: filters.minPrice,
+      maxPrice: filters.maxPrice,
+      currency: filters.currency,
+      sort: filters.sort,
+    }, pagination.page, pagination.limit);
+    fetchAds(params, pagination.page, pagination.limit);
+  }, []); // Only run on mount
 
   const handleApplyFilters = (values) => {
     // Clear previous error
     setError(null);
 
-    // Trim search query
-    const trimmedQ = values.q ? values.q.trim() : '';
-
-    // Convert prices to numbers - use undefined for empty values
+    // Convert prices to numbers for validation
     const min = values.minPrice !== "" && values.minPrice !== null ? Number(values.minPrice) : undefined;
     const max = values.maxPrice !== "" && values.maxPrice !== null ? Number(values.maxPrice) : undefined;
 
@@ -134,94 +147,76 @@ const Home = () => {
     }
 
     // Update filters state
-    setFilters({
-      q: trimmedQ,
+    const newFilters = {
+      q: values.search || values.q || '',
       minPrice: values.minPrice || '',
       maxPrice: values.maxPrice || '',
       currency: values.currency || '',
-      category: values.category || '',
-      subCategory: values.subCategory || '',
+      category: values.categorySlug || '',
+      subCategory: values.subCategorySlug || '',
+      sort: values.sort || 'newest',
+    };
+    setFilters(newFilters);
+
+    // Build query params using helper
+    const params = buildAdsQuery({
+      search: newFilters.q,
+      categorySlug: newFilters.category,
+      subCategorySlug: newFilters.subCategory,
+      minPrice: newFilters.minPrice,
+      maxPrice: newFilters.maxPrice,
+      currency: newFilters.currency,
+      sort: newFilters.sort,
+    }, 1, pagination.limit);
+
+    // Sync to URL
+    const urlParams = new URLSearchParams();
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null && params[key] !== '') {
+        urlParams.set(key, params[key]);
+      }
     });
+    setSearchParams(urlParams);
 
-    // Build params object - OMIT empty values
-    const params = {};
-    
-    // q: include only if trimmed length > 0
-    if (trimmedQ.length > 0) {
-      params.q = trimmedQ;
-    }
-    
-    // minPrice: include only if it is a valid number (not "", not null, not NaN)
-    if (min !== undefined && !isNaN(min)) {
-      params.minPrice = min;
-    }
-    
-    // maxPrice: include only if it is a valid number
-    if (max !== undefined && !isNaN(max)) {
-      params.maxPrice = max;
-    }
-    
-    // currency: include only if currency is not empty
-    if (values.currency && values.currency.trim() !== '') {
-      params.currency = values.currency;
-    }
-
-    // categorySlug: include only if category is not empty
-    if (values.categorySlug && values.categorySlug.trim() !== '') {
-      params.categorySlug = values.categorySlug;
-    }
-
-    // subCategorySlug: include only if subCategory is not empty
-    if (values.subCategorySlug && values.subCategorySlug.trim() !== '') {
-      params.subCategorySlug = values.subCategorySlug;
-    }
-
-    // Reset page to 1 when applying filters, then fetch
+    // Fetch with new filters
     fetchAds(params, 1, pagination.limit);
   };
 
   const handleResetFilters = () => {
     // Clear filters
-    setFilters({
+    const emptyFilters = {
       q: '',
       minPrice: '',
       maxPrice: '',
       currency: '',
       category: '',
       subCategory: '',
-    });
+      sort: 'newest',
+    };
+    setFilters(emptyFilters);
 
     // Clear any validation errors
     setError(null);
 
-    // Reset page to 1 and refetch all ads (no filters)
-    fetchAds({}, 1, pagination.limit);
+    // Clear URL params
+    setSearchParams({});
+
+    // Reset page to 1 and refetch all ads (no filters, default sort)
+    const params = buildAdsQuery({ sort: 'newest' }, 1, pagination.limit);
+    fetchAds(params, 1, pagination.limit);
   };
 
   const handlePageChange = (newPage) => {
-    // Build clean filters from current filters state
-    const params = {};
-    const trimmedQ = filters.q.trim();
-    if (trimmedQ.length > 0) {
-      params.q = trimmedQ;
-    }
-    const min = filters.minPrice !== "" && filters.minPrice !== null ? Number(filters.minPrice) : undefined;
-    const max = filters.maxPrice !== "" && filters.maxPrice !== null ? Number(filters.maxPrice) : undefined;
-    if (min !== undefined && !isNaN(min)) {
-      params.minPrice = min;
-    }
-    if (max !== undefined && !isNaN(max)) {
-      params.maxPrice = max;
-    }
-    if (filters.currency && filters.currency.trim() !== '') {
-      params.currency = filters.currency;
-    }
-    if (filters.category && filters.category.trim() !== '') {
-      params.categorySlug = filters.category; // Backend expects categorySlug
-    }
-    if (filters.subCategory && filters.subCategory.trim() !== '') {
-      params.subCategorySlug = filters.subCategory; // Backend expects subCategorySlug
-    }
+    // Build query params using helper function with current filters
+    const params = buildAdsQuery({
+      search: filters.q,
+      categorySlug: filters.category,
+      subCategorySlug: filters.subCategory,
+      minPrice: filters.minPrice,
+      maxPrice: filters.maxPrice,
+      currency: filters.currency,
+      sort: filters.sort,
+    }, newPage, pagination.limit);
     
     fetchAds(params, newPage, pagination.limit);
   };

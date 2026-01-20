@@ -4,12 +4,13 @@ import useCategories from '../hooks/useCategories';
 const FiltersBar = ({ initialValues = {}, onApply, onReset }) => {
   // Create initial filters from initialValues (only used for initial state)
   const getInitialFilters = () => ({
-    q: initialValues.q || '',
+    q: initialValues.q || initialValues.search || '',
     minPrice: initialValues.minPrice || '',
     maxPrice: initialValues.maxPrice || '',
     currency: initialValues.currency || '',
     category: initialValues.category || '',
     subCategory: initialValues.subCategory || '',
+    sort: initialValues.sort || 'newest',
   });
 
   // Use lazy initialization - state is only set once on mount
@@ -60,6 +61,14 @@ const FiltersBar = ({ initialValues = {}, onApply, onReset }) => {
     if (filters.subCategory && filters.subCategory.trim() !== '') {
       values.subCategorySlug = filters.subCategory; // Backend expects subCategorySlug
     }
+    // Map q to search for backend
+    if (filters.q && filters.q.trim()) {
+      values.search = filters.q.trim();
+    }
+    // Include sort
+    if (filters.sort) {
+      values.sort = filters.sort;
+    }
     onApply(values);
   };
 
@@ -71,6 +80,7 @@ const FiltersBar = ({ initialValues = {}, onApply, onReset }) => {
       currency: '',
       category: '',
       subCategory: '',
+      sort: 'newest',
     });
     onReset();
   };
@@ -186,6 +196,21 @@ const FiltersBar = ({ initialValues = {}, onApply, onReset }) => {
             </select>
           </div>
         )}
+
+        <div>
+          <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500', color: '#333' }}>
+            Sort
+          </label>
+          <select
+            value={filters.sort}
+            onChange={(e) => handleChange('sort', e.target.value)}
+            style={{ width: '100%' }}
+          >
+            <option value="newest">Newest</option>
+            <option value="price_asc">Price ↑</option>
+            <option value="price_desc">Price ↓</option>
+          </select>
+        </div>
 
         <div style={{ display: 'flex', gap: '8px' }}>
           <button
