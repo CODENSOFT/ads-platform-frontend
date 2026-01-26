@@ -13,7 +13,6 @@ import CreateAd from './pages/CreateAd';
 import MyAds from './pages/MyAds';
 import Chats from './pages/Chats';
 import ChatDetail from './pages/ChatDetail';
-import Messages from './pages/Messages';
 
 const CatchAllRedirect = () => {
   return <Navigate to="/" replace />;
@@ -75,7 +74,7 @@ const App = () => {
           <Route path="/my-ads" element={<MyAds />} />
           <Route path="/chats" element={<Chats />} />
           <Route path="/chats/:id" element={<ChatDetail />} />
-          <Route path="/messages" element={<Messages />} />
+          <Route path="/messages" element={<Navigate to="/chats" replace />} />
         </Route>
         
         {/* ✅ Catch-all LAST */}

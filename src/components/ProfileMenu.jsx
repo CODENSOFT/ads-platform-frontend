@@ -236,7 +236,7 @@ const ProfileMenu = () => {
             </button>
 
             <button
-              onClick={() => handleMenuClick('/messages')}
+              onClick={() => handleMenuClick('/chats')}
               style={{
                 width: '100%',
                 padding: '10px 16px',
@@ -254,7 +254,7 @@ const ProfileMenu = () => {
               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
             >
-              💬 Messages
+              💬 My Conversations
             </button>
           </div>
 
