@@ -1,30 +1,50 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { getChats } from '../api/chat';
 import { useToast } from '../hooks/useToast';
 import { parseError } from '../utils/errorParser';
 import { useAuth } from '../auth/useAuth.js';
-import { useChatNotifications } from '../hooks/useChatNotifications.js';
+import { useUnreadCount } from '../hooks/useUnreadCount.js';
 
 const Chats = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const { error: showError, success: showSuccess } = useToast();
-  const { unreadCount, refreshUnreadCount } = useChatNotifications();
+  const { updateFromChats } = useUnreadCount();
   const [loading, setLoading] = useState(true);
   const [chats, setChats] = useState([]);
-  const [hasShownNotification, setHasShownNotification] = useState(false);
 
   useEffect(() => {
     const fetchChats = async () => {
       try {
         setLoading(true);
         const response = await getChats();
+        
+        // Read chats array and totalUnread from response
         const chatsData = response.data?.chats || response.data?.data || response.data || [];
+        const totalUnreadCount = response.data?.totalUnread || 0;
+        
         setChats(Array.isArray(chatsData) ? chatsData : []);
         
-        // Refresh unread count after fetching chats
-        refreshUnreadCount();
+        // Update unread count hook with data from getChats
+        updateFromChats(response);
+        
+        // Show toast notification if unread > 0 (only once per session)
+        if (totalUnreadCount > 0) {
+          const toastShown = sessionStorage.getItem('unread_toast_shown');
+          const lastUnread = parseInt(sessionStorage.getItem('last_unread') || '0', 10);
+          
+          // Show toast if:
+          // 1. Not shown yet in this session, OR
+          // 2. Unread count increased since last check
+          if (!toastShown || totalUnreadCount > lastUnread) {
+            const badgeText = totalUnreadCount > 99 ? '99+' : String(totalUnreadCount);
+            showSuccess(`Ai mesaje noi (${badgeText}).`);
+            sessionStorage.setItem('unread_toast_shown', 'true');
+            sessionStorage.setItem('last_unread', String(totalUnreadCount));
+          }
+        }
       } catch (err) {
         const errorMessage = parseError(err);
         showError(errorMessage);
@@ -34,15 +54,24 @@ const Chats = () => {
     };
 
     fetchChats();
-  }, [showError, refreshUnreadCount]);
+  }, [showError, updateFromChats, showSuccess]);
 
-  // Show notification when user opens page and has unread messages
+  // Refetch when navigating back to /chats (e.g., from ChatDetail)
   useEffect(() => {
-    if (!loading && unreadCount > 0 && !hasShownNotification) {
-      showSuccess(`Ai ${unreadCount} ${unreadCount === 1 ? 'mesaj nou' : 'mesaje noi'}`);
-      setHasShownNotification(true);
+    if (location.pathname === '/chats' || location.hash === '#/chats') {
+      const fetchChats = async () => {
+        try {
+          const response = await getChats();
+          const chatsData = response.data?.chats || response.data?.data || response.data || [];
+          setChats(Array.isArray(chatsData) ? chatsData : []);
+          updateFromChats(response);
+        } catch {
+          // Silently fail on refetch to avoid spam
+        }
+      };
+      fetchChats();
     }
-  }, [loading, unreadCount, hasShownNotification, showSuccess]);
+  }, [location.pathname, location.hash, updateFromChats]);
 
   const getOtherParticipant = (chat) => {
     if (!chat.participants || !Array.isArray(chat.participants)) return null;
@@ -75,15 +104,15 @@ const Chats = () => {
     }
   };
 
-  // Format unread count: show number or "99+" if > 99
-  const formatUnreadCount = (count) => {
-    if (!count || count === 0) return null;
-    return count > 99 ? '99+' : String(count);
-  };
-
   // Get unread count for a specific chat
   const getChatUnreadCount = (chat) => {
     return chat.unreadCount || chat.unreadMessages || chat.unread || 0;
+  };
+
+  // Format badge text for chat unread count
+  const formatChatBadge = (count) => {
+    if (!count || count === 0) return null;
+    return count > 99 ? '99+' : String(count);
   };
 
   if (loading) {
@@ -144,7 +173,7 @@ const Chats = () => {
               const otherParticipant = getOtherParticipant(chat);
               const lastMessage = chat.lastMessage;
               const chatUnreadCount = getChatUnreadCount(chat);
-              const unreadDisplay = formatUnreadCount(chatUnreadCount);
+              const unreadDisplay = formatChatBadge(chatUnreadCount);
               
               return (
                 <div
@@ -188,15 +217,15 @@ const Chats = () => {
                         </div>
                         {unreadDisplay && (
                           <span style={{
-                            backgroundColor: '#007bff',
+                            backgroundColor: '#1a1a1a',
                             color: '#fff',
-                            borderRadius: '12px',
-                            padding: '2px 8px',
-                            fontSize: '12px',
+                            borderRadius: '10px',
+                            padding: '2px 6px',
+                            fontSize: '11px',
                             fontWeight: '600',
-                            minWidth: '20px',
+                            minWidth: '18px',
                             textAlign: 'center',
-                            lineHeight: '1.5',
+                            lineHeight: '1.4',
                           }}>
                             {unreadDisplay}
                           </span>

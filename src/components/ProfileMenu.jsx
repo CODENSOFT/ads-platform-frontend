@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth.js';
+import { useUnreadCount } from '../hooks/useUnreadCount.js';
 
 const ProfileMenu = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { badgeText } = useUnreadCount();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef(null);
   const buttonRef = useRef(null);
@@ -248,13 +250,31 @@ const ProfileMenu = () => {
                 color: '#333',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px',
+                justifyContent: 'space-between',
                 transition: 'background-color 0.2s',
+                position: 'relative',
               }}
               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
             >
-              💬 My Conversations
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                💬 My Conversations
+              </span>
+              {badgeText && (
+                <span style={{
+                  backgroundColor: '#1a1a1a',
+                  color: '#fff',
+                  borderRadius: '10px',
+                  padding: '2px 6px',
+                  fontSize: '11px',
+                  fontWeight: '600',
+                  minWidth: '18px',
+                  textAlign: 'center',
+                  lineHeight: '1.4',
+                }}>
+                  {badgeText}
+                </span>
+              )}
             </button>
           </div>
 

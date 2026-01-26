@@ -4,14 +4,14 @@ import { getMessages, sendMessage } from '../api/chat';
 import { useToast } from '../hooks/useToast';
 import { parseError } from '../utils/errorParser';
 import { useAuth } from '../auth/useAuth.js';
-import { useChatNotifications } from '../hooks/useChatNotifications.js';
+import { useUnreadCount } from '../hooks/useUnreadCount.js';
 
 const ChatDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { error: showError } = useToast();
-  const { refreshUnreadCount } = useChatNotifications();
+  const { refreshUnreadCount } = useUnreadCount();
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
