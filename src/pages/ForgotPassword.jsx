@@ -25,17 +25,25 @@ const ForgotPassword = () => {
     setLoading(true);
 
     try {
-      await forgotPassword({ email });
-      // Success - show success message
-      setSuccess(true);
-      showSuccess('If an account exists with this email, a password reset link has been sent.');
+      const response = await forgotPassword({ email });
+      // Only show success UI when request returns 200 with success:true
+      if (response?.data?.success === true) {
+        setSuccess(true);
+        showSuccess('If an account exists with this email, a password reset link has been sent.');
+      } else {
+        // If response doesn't have success:true, treat as error
+        setError('Something went wrong. Please try again.');
+        showError('Something went wrong. Please try again.');
+        setSuccess(false);
+      }
     } catch (err) {
-      const status = err?.response?.status;
-      const type = err?.response?.data?.details?.type;
-
-      if (status === 404 && type === 'EMAIL_NOT_FOUND') {
+      // Check for EMAIL_NOT_FOUND error
+      if (err.response && err.response.status === 404 && 
+          err.response.data && err.response.data.details && 
+          err.response.data.details.type === "EMAIL_NOT_FOUND") {
         setError('Cont cu emailul dat nu există');
-        showError?.('Cont cu emailul dat nu există');
+        showError('Cont cu emailul dat nu există');
+        setSuccess(false);
         return;
       }
 
