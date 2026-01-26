@@ -26,26 +26,12 @@ const ForgotPassword = () => {
 
     try {
       await forgotPassword({ email });
-      // Success - show success message only in try block after request succeeds (status 200)
+      // Success - show success UI when request succeeds (status 200)
       setSuccess(true);
       showSuccess('If an account exists with this email, a password reset link has been sent.');
     } catch (err) {
-      // Detect status and error type from Axios response
-      const status = err?.response?.status;
-      const type = err?.response?.data?.details?.type;
-      const msgFromApi = err?.response?.data?.message;
-
-      // If status === 404 OR type === "EMAIL_NOT_FOUND"
-      if (status === 404 || type === "EMAIL_NOT_FOUND") {
-        // Show message exactly from response.data.message
-        // Do not show the generic "If account exists..." message
-        // Do not set success=true when request fails
-        setError(msgFromApi);
-        showError(msgFromApi);
-        return;
-      }
-
-      // Otherwise keep existing behavior
+      // Show error message from parseError (reads err.response.data.message with fallback)
+      setSuccess(false);
       const errorMessage = parseError(err);
       setError(errorMessage);
       showError(errorMessage);
