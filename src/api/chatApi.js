@@ -33,22 +33,22 @@ const getToken = () => {
  * @throws {Error} If validation fails or request fails
  */
 export const startChat = async ({ receiverId, adId }) => {
-  // Validate before request: if missing => throw Error with message "Missing receiverId/adId"
-  if (!receiverId || receiverId === null || receiverId === undefined || receiverId === '' || String(receiverId).trim() === '') {
+  // Normalize to strings first
+  const receiverIdStr = String(receiverId || '').trim();
+  const adIdStr = String(adId || '').trim();
+
+  // Improve validation to also block literal strings "null"/"undefined"
+  if (['', 'null', 'undefined'].includes(receiverIdStr)) {
     const errorMsg = 'Missing receiverId/adId';
-    console.error('[CHAT_API] Validation failed: receiverId is missing', { receiverId, adId });
+    console.error('[CHAT_API] Validation failed: receiverId is missing or invalid', { receiverId, receiverIdStr, adId });
     throw new Error(errorMsg);
   }
 
-  if (!adId || adId === null || adId === undefined || adId === '' || String(adId).trim() === '') {
+  if (['', 'null', 'undefined'].includes(adIdStr)) {
     const errorMsg = 'Missing receiverId/adId';
-    console.error('[CHAT_API] Validation failed: adId is missing', { receiverId, adId });
+    console.error('[CHAT_API] Validation failed: adId is missing or invalid', { receiverId, adId, adIdStr });
     throw new Error(errorMsg);
   }
-
-  // Normalize to strings
-  const receiverIdStr = String(receiverId).trim();
-  const adIdStr = String(adId).trim();
 
   // Verify token exists
   const token = getToken();

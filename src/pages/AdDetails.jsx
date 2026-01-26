@@ -59,7 +59,7 @@ const AdDetails = () => {
         hour: '2-digit',
         minute: '2-digit',
       });
-    } catch (e) {
+    } catch {
       return dateString;
     }
   };
@@ -71,32 +71,26 @@ const AdDetails = () => {
       return;
     }
 
-    // Derive adId ONLY from: ad?._id || ad?.id
-    const adId = ad?._id || ad?.id;
+    // Use adId from route param `id` as source of truth
+    const adIdStr = String(id || '').trim();
 
-    // Derive receiverId from ad owner (NOT current user):
-    // check in order: ad.user?._id, ad.userId, ad.owner?._id, ad.ownerId, ad.createdBy?._id, ad.createdById, ad.seller?._id, ad.sellerId
-    const receiverId = 
-      ad?.user?._id ||
-      ad?.userId ||
-      ad?.owner?._id ||
-      ad?.ownerId ||
-      ad?.createdBy?._id ||
-      ad?.createdById ||
-      ad?.seller?._id ||
-      ad?.sellerId;
+    // Fix receiverId derivation to support BOTH populated objects and raw strings
+    const receiverId =
+      ad?.user?._id || ad?.user || ad?.userId ||
+      ad?.owner?._id || ad?.owner || ad?.ownerId ||
+      ad?.createdBy?._id || ad?.createdBy || ad?.createdById ||
+      ad?.seller?._id || ad?.seller || ad?.sellerId;
 
-    // Normalize to strings
-    const adIdStr = adId ? String(adId).trim() : '';
-    const receiverIdStr = receiverId ? String(receiverId).trim() : '';
+    // Normalize strings and block "null"/"undefined"
+    const receiverIdStr = String(receiverId || '').trim();
 
-    // If adId missing -> show toast "Ad id missing. Cannot start chat." and DO NOT call API
+    // Block if adId is missing or "null"/"undefined"
     if (!adIdStr || adIdStr === 'null' || adIdStr === 'undefined') {
       showError('Ad id missing. Cannot start chat.');
       return;
     }
 
-    // If receiverId missing -> toast "Seller id missing. Cannot start chat."
+    // Block if receiverId is missing or "null"/"undefined"
     if (!receiverIdStr || receiverIdStr === 'null' || receiverIdStr === 'undefined') {
       showError('Seller id missing. Cannot start chat.');
       return;
@@ -119,8 +113,10 @@ const AdDetails = () => {
       // Call startChat with { receiverId, adId }
       const response = await startChat({ receiverId: receiverIdStr, adId: adIdStr });
       
-      // After successful start, backend returns chat id. Navigate to `/chats/${chatId}`
-      const chatId = response?.chat?._id || response?.data?._id || response?._id;
+      // Fix chatId extraction after API:
+      // startChat returns { success, message, chat: { _id } }
+      // so use: response?.chat?._id
+      const chatId = response?.chat?._id;
       if (chatId) {
         navigate(`/chats/${chatId}`);
       } else {
@@ -151,7 +147,7 @@ const AdDetails = () => {
       // Try to copy to clipboard
       await navigator.clipboard.writeText(shareUrl);
       showSuccess('Link copied to clipboard');
-    } catch (err) {
+    } catch {
       // Fallback: show prompt with URL
       const userConfirmed = window.confirm(
         `Share URL:\n\n${shareUrl}\n\nClick OK to copy manually.`
@@ -165,7 +161,7 @@ const AdDetails = () => {
         try {
           document.execCommand('copy');
           showSuccess('Link copied');
-        } catch (e) {
+        } catch {
           showError('Please copy the URL manually');
         }
         document.body.removeChild(input);
@@ -372,7 +368,21 @@ const AdDetails = () => {
                 <div style={{ display: 'flex', gap: '12px' }}>
                   <button
                     onClick={handleContactSeller}
-                    disabled={contacting || !ad || !(ad?._id || ad?.id) || !(ad?.user?._id || ad?.seller?._id || ad?.owner?._id || ad?.createdBy?._id || ad?.userId)}
+                    disabled={(() => {
+                      // Update button disabled condition to match the same logic
+                      const adIdStr = String(id || '').trim();
+                      const receiverId =
+                        ad?.user?._id || ad?.user || ad?.userId ||
+                        ad?.owner?._id || ad?.owner || ad?.ownerId ||
+                        ad?.createdBy?._id || ad?.createdBy || ad?.createdById ||
+                        ad?.seller?._id || ad?.seller || ad?.sellerId;
+                      const receiverIdStr = String(receiverId || '').trim();
+                      const currentUserId = user ? String(user._id || user.id).trim() : '';
+                      const isMissing = !adIdStr || adIdStr === 'null' || adIdStr === 'undefined' ||
+                                       !receiverIdStr || receiverIdStr === 'null' || receiverIdStr === 'undefined';
+                      const isSelf = receiverIdStr === currentUserId;
+                      return contacting || isMissing || isSelf;
+                    })()}
                     className="btn-primary"
                     style={{
                       flex: 1,
