@@ -4,13 +4,16 @@ import { getChats } from '../api/chat';
 import { useToast } from '../hooks/useToast';
 import { parseError } from '../utils/errorParser';
 import { useAuth } from '../auth/useAuth.js';
+import { useChatNotifications } from '../hooks/useChatNotifications.js';
 
 const Chats = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { error: showError } = useToast();
+  const { error: showError, success: showSuccess } = useToast();
+  const { unreadCount, refreshUnreadCount } = useChatNotifications();
   const [loading, setLoading] = useState(true);
   const [chats, setChats] = useState([]);
+  const [hasShownNotification, setHasShownNotification] = useState(false);
 
   useEffect(() => {
     const fetchChats = async () => {
@@ -19,6 +22,9 @@ const Chats = () => {
         const response = await getChats();
         const chatsData = response.data?.chats || response.data?.data || response.data || [];
         setChats(Array.isArray(chatsData) ? chatsData : []);
+        
+        // Refresh unread count after fetching chats
+        refreshUnreadCount();
       } catch (err) {
         const errorMessage = parseError(err);
         showError(errorMessage);
@@ -28,7 +34,15 @@ const Chats = () => {
     };
 
     fetchChats();
-  }, [showError]);
+  }, [showError, refreshUnreadCount]);
+
+  // Show notification when user opens page and has unread messages
+  useEffect(() => {
+    if (!loading && unreadCount > 0 && !hasShownNotification) {
+      showSuccess(`Ai ${unreadCount} ${unreadCount === 1 ? 'mesaj nou' : 'mesaje noi'}`);
+      setHasShownNotification(true);
+    }
+  }, [loading, unreadCount, hasShownNotification, showSuccess]);
 
   const getOtherParticipant = (chat) => {
     if (!chat.participants || !Array.isArray(chat.participants)) return null;
@@ -59,6 +73,17 @@ const Chats = () => {
     } catch {
       return dateString;
     }
+  };
+
+  // Format unread count: show number or "99+" if > 99
+  const formatUnreadCount = (count) => {
+    if (!count || count === 0) return null;
+    return count > 99 ? '99+' : String(count);
+  };
+
+  // Get unread count for a specific chat
+  const getChatUnreadCount = (chat) => {
+    return chat.unreadCount || chat.unreadMessages || chat.unread || 0;
   };
 
   if (loading) {
@@ -118,6 +143,8 @@ const Chats = () => {
             {chats.map((chat) => {
               const otherParticipant = getOtherParticipant(chat);
               const lastMessage = chat.lastMessage;
+              const chatUnreadCount = getChatUnreadCount(chat);
+              const unreadDisplay = formatUnreadCount(chatUnreadCount);
               
               return (
                 <div
@@ -128,6 +155,7 @@ const Chats = () => {
                     cursor: 'pointer',
                     transition: 'transform 0.2s, box-shadow 0.2s',
                     padding: '20px',
+                    position: 'relative',
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.transform = 'translateY(-2px)';
@@ -146,12 +174,33 @@ const Chats = () => {
                   }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ 
-                        fontWeight: '600', 
-                        fontSize: '18px', 
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
                         marginBottom: '8px',
-                        color: '#1a1a1a',
                       }}>
-                        {otherParticipant?.name || 'Unknown User'}
+                        <div style={{ 
+                          fontWeight: '600', 
+                          fontSize: '18px', 
+                          color: '#1a1a1a',
+                        }}>
+                          {otherParticipant?.name || 'Unknown User'}
+                        </div>
+                        {unreadDisplay && (
+                          <span style={{
+                            backgroundColor: '#007bff',
+                            color: '#fff',
+                            borderRadius: '12px',
+                            padding: '2px 8px',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            minWidth: '20px',
+                            textAlign: 'center',
+                            lineHeight: '1.5',
+                          }}>
+                            {unreadDisplay}
+                          </span>
+                        )}
                       </div>
                       {chat.ad && (
                         <div style={{ 
@@ -166,7 +215,8 @@ const Chats = () => {
                       {lastMessage && (
                         <div style={{ 
                           fontSize: '14px', 
-                          color: '#888',
+                          color: chatUnreadCount > 0 ? '#1a1a1a' : '#888',
+                          fontWeight: chatUnreadCount > 0 ? '500' : '400',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
@@ -176,17 +226,23 @@ const Chats = () => {
                         </div>
                       )}
                     </div>
-                    {chat.updatedAt && (
-                      <div style={{ 
-                        fontSize: '12px', 
-                        color: '#999', 
-                        whiteSpace: 'nowrap',
-                        fontWeight: '500',
-                        paddingTop: '2px',
-                      }}>
-                        {formatDate(chat.updatedAt)}
-                      </div>
-                    )}
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'flex-end',
+                      gap: '4px',
+                    }}>
+                      {chat.updatedAt && (
+                        <div style={{ 
+                          fontSize: '12px', 
+                          color: '#999', 
+                          whiteSpace: 'nowrap',
+                          fontWeight: '500',
+                        }}>
+                          {formatDate(chat.updatedAt)}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
