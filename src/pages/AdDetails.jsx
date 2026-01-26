@@ -77,29 +77,62 @@ const AdDetails = () => {
     // Calculate receiverId correctly (seller of the ad)
     const receiverId = ad?.user?._id || ad?.seller?._id || ad?.owner?._id || ad?.createdBy?._id || ad?.userId;
 
-    // Validation: check if adId or receiverId are missing
-    if (!adId || !receiverId) {
-      console.error("[CHAT_START] Missing adId or receiverId", { adId, receiverId });
-      alert("Cannot start chat: invalid ad data");
+    // Convert to strings and validate
+    const adIdStr = adId ? String(adId).trim() : '';
+    const receiverIdStr = receiverId ? String(receiverId).trim() : '';
+
+    // Validation: check if adId or receiverId are missing or invalid
+    if (!adIdStr || adIdStr === 'null' || adIdStr === 'undefined') {
+      console.error("[CHAT_START] Invalid adId", { adId, adIdStr, ad });
+      showError('Ad ID missing or invalid');
       return;
     }
 
-    console.log("[CHAT_START]", { adId, receiverId });
+    if (!receiverIdStr || receiverIdStr === 'null' || receiverIdStr === 'undefined') {
+      console.error("[CHAT_START] Invalid receiverId", { receiverId, receiverIdStr, ad });
+      showError('Seller ID missing or invalid');
+      return;
+    }
+
+    // Prevent user from messaging themselves
+    if (receiverIdStr === String(user._id || user.id).trim()) {
+      showError("You can't message yourself");
+      return;
+    }
+
+    console.log("[CHAT_START] Sending request", { adId: adIdStr, receiverId: receiverIdStr });
 
     // Get API URL and token
     const envURL = import.meta.env.VITE_API_URL || "http://localhost:5001";
     const API = envURL.endsWith('/api') ? envURL : `${envURL.replace(/\/+$/, '')}/api`;
     const token = localStorage.getItem('token');
 
+    if (!token) {
+      console.error("[CHAT_START] No token found");
+      showError('Authentication required');
+      navigate('/login');
+      return;
+    }
+
     setContacting(true);
     try {
       // Request: POST /api/chats/start with body { adId, receiverId }
-      const response = await axios.post(`${API}/chats/start`, {
-        adId,
-        receiverId
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
+      const requestBody = {
+        adId: adIdStr,
+        receiverId: receiverIdStr
+      };
+      
+      console.log("[CHAT_START] Request body", requestBody);
+      console.log("[CHAT_START] Request URL", `${API}/chats/start`);
+
+      const response = await axios.post(`${API}/chats/start`, requestBody, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
+      
+      console.log("[CHAT_START] Response", response.data);
       
       // After OK response from backend: navigate to chat
       const chatId = response.data?.chat?._id || response.data?.data?._id || response.data?._id;
@@ -109,6 +142,7 @@ const AdDetails = () => {
         showError('Failed to start conversation');
       }
     } catch (err) {
+      console.error("[CHAT_START] Error", err.response?.data || err.message);
       const errorMessage = parseError(err);
       showError(errorMessage);
     } finally {
