@@ -26,24 +26,28 @@ const getToken = () => {
 
 /**
  * Start a new chat with a seller
- * @param {string} adId - Ad ID (Mongo ObjectId) - must be from ad._id
+ * @param {Object} params - Chat start parameters
+ * @param {string} params.receiverId - Receiver/Seller ID (Mongo ObjectId)
+ * @param {string} params.adId - Ad ID (Mongo ObjectId)
  * @returns {Promise<ChatResponse>}
  * @throws {Error} If validation fails or request fails
  */
-export const startChat = async (adId) => {
-  // Fix obligatoriu: NU trimite request dacă adId este null/undefined/""
-  if (!adId || adId === null || adId === undefined || adId === '' || String(adId).trim() === '') {
-    const errorMsg = 'Ad ID is required and cannot be null, undefined, or empty';
-    console.error('[CHAT_API] Validation failed: adId is null/undefined/empty', { 
-      adId, 
-      type: typeof adId,
-      value: adId 
-    });
-    console.error('[CHAT_API] Request blocked - not sending to backend');
+export const startChat = async ({ receiverId, adId }) => {
+  // Validate before request: if missing => throw Error with message "Missing receiverId/adId"
+  if (!receiverId || receiverId === null || receiverId === undefined || receiverId === '' || String(receiverId).trim() === '') {
+    const errorMsg = 'Missing receiverId/adId';
+    console.error('[CHAT_API] Validation failed: receiverId is missing', { receiverId, adId });
     throw new Error(errorMsg);
   }
 
-  // Normalize adId to string
+  if (!adId || adId === null || adId === undefined || adId === '' || String(adId).trim() === '') {
+    const errorMsg = 'Missing receiverId/adId';
+    console.error('[CHAT_API] Validation failed: adId is missing', { receiverId, adId });
+    throw new Error(errorMsg);
+  }
+
+  // Normalize to strings
+  const receiverIdStr = String(receiverId).trim();
   const adIdStr = String(adId).trim();
 
   // Verify token exists
@@ -59,11 +63,16 @@ export const startChat = async (adId) => {
   const url = `${API_URL}/chats/start`;
   const method = 'POST';
   
-  // Normalizează payload-ul să fie EXACT: { ad: adId }
-  // NU adId, NU id, NU ad: obiect întreg
+  // Send request body exactly: { receiverId, adId }
   const payload = {
-    ad: adIdStr
+    receiverId: receiverIdStr,
+    adId: adIdStr
   };
+
+  // Debug logs only in development
+  if (import.meta.env.DEV) {
+    console.log('[CHAT_START] adId:', adIdStr, 'receiverId:', receiverIdStr);
+  }
 
   // Log request payload before sending
   console.log('[CHAT_API] Request payload:', payload);

@@ -6,6 +6,7 @@ import { useAuth } from '../auth/useAuth.js';
 import { useToast } from '../hooks/useToast';
 import { parseError } from '../utils/errorParser';
 import { buildAdShareUrl } from '../utils/shareUrl';
+import { getAdId, getReceiverIdFromAd } from '../utils/chatIds';
 
 const AdDetails = () => {
   const { id } = useParams();
@@ -71,41 +72,44 @@ const AdDetails = () => {
       return;
     }
 
-    // Asigură-te că adId este corect:
-    // - dacă ad vine din API, folosește ad._id (nu ad.id)
-    // - dacă vine din route params, citește param corect (useParams().id)
-    const adIdFromAd = ad?._id; // Folosește ad._id (NU ad.id)
-    const adIdFromRoute = id; // Din useParams().id
-    
-    // Prioritate: ad._id (din API) > route param id
-    const adId = adIdFromAd || adIdFromRoute;
+    // Determine adId via (ad._id || ad.id) using helper
+    const adId = getAdId(ad) || id; // Fallback to route param if ad not loaded
 
-    // Log sursa exactă a adId
-    console.log('[CHAT_START] adId source:', {
-      fromAd: adIdFromAd,
-      fromRoute: adIdFromRoute,
-      final: adId,
-      adObject: ad ? { _id: ad._id, id: ad.id } : null
-    });
+    // Determine receiverId by checking fields in order using helper
+    const receiverId = getReceiverIdFromAd(ad);
 
-    // Runtime validation: NU trimite request dacă adId este null/undefined/""
-    if (!adId || adId === null || adId === undefined || adId === '' || String(adId).trim() === '') {
-      console.error('[CHAT_START] Invalid adId - request blocked', { 
-        adId, 
-        adIdFromAd, 
-        adIdFromRoute,
-        ad: ad ? { _id: ad._id, id: ad.id } : null
-      });
+    // Debug logs only in development
+    if (import.meta.env.DEV) {
+      console.log('[CHAT_START] adId:', adId, 'receiverId:', receiverId);
+    }
+
+    // Prevent API call if receiverId/adId missing; show toast error instead
+    if (!adId) {
+      console.error('[CHAT_START] Missing adId - request blocked', { ad, id });
       showError('Ad ID missing or invalid. Cannot start chat.');
+      return;
+    }
+
+    if (!receiverId) {
+      console.error('[CHAT_START] Missing receiverId - request blocked', { ad });
+      showError('Seller information missing. Cannot start chat.');
+      return;
+    }
+
+    // IMPORTANT: if receiverId equals logged in user id (user._id), block and show toast
+    const currentUserId = String(user._id || user.id).trim();
+    if (receiverId === currentUserId) {
+      showError("You can't message yourself");
       return;
     }
 
     setContacting(true);
     try {
-      // Folosește startChat(adId) - funcția primește doar adId
-      const response = await startChat(adId);
+      // Call startChat with { receiverId, adId }
+      const response = await startChat({ receiverId, adId });
       
-      // După răspuns OK de la backend: navighează la chat (cu id primit)
+      // After successful start, backend returns chat id. Navigate to `/chats/${chatId}`
+      // Make sure it works with HashRouter by using navigate(`/chats/${id}`)
       const chatId = response?.chat?._id || response?.data?._id || response?._id;
       if (chatId) {
         navigate(`/chats/${chatId}`);
