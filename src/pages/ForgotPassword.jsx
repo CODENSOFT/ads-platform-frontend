@@ -25,33 +25,30 @@ const ForgotPassword = () => {
     setLoading(true);
 
     try {
-      const response = await forgotPassword({ email });
-      // Only show success UI when request returns 200 with success:true
-      if (response?.data?.success === true) {
-        setSuccess(true);
-        showSuccess('If an account exists with this email, a password reset link has been sent.');
-      } else {
-        // If response doesn't have success:true, treat as error
-        setError('Something went wrong. Please try again.');
-        showError('Something went wrong. Please try again.');
-        setSuccess(false);
-      }
+      await forgotPassword({ email });
+      // Success - show success message only in try block after request succeeds (status 200)
+      setSuccess(true);
+      showSuccess('If an account exists with this email, a password reset link has been sent.');
     } catch (err) {
-      // Check for EMAIL_NOT_FOUND error
-      if (err.response && err.response.status === 404 && 
-          err.response.data && err.response.data.details && 
-          err.response.data.details.type === "EMAIL_NOT_FOUND") {
-        setError('Cont cu emailul dat nu există');
-        showError('Cont cu emailul dat nu există');
-        setSuccess(false);
+      // Detect status and error type from Axios response
+      const status = err?.response?.status;
+      const type = err?.response?.data?.details?.type;
+      const msgFromApi = err?.response?.data?.message;
+
+      // If status === 404 OR type === "EMAIL_NOT_FOUND"
+      if (status === 404 || type === "EMAIL_NOT_FOUND") {
+        // Show error message (use API message if available, otherwise default)
+        const msg = msgFromApi || "Cont cu emailul dat nu există";
+        setError(msg);
+        showError(msg);
+        // STOP (return) so it does NOT show the generic success message
         return;
       }
 
-      // For other errors, show generic error
+      // Otherwise keep existing behavior
       const errorMessage = parseError(err);
       setError(errorMessage);
       showError(errorMessage);
-      setSuccess(false);
     } finally {
       setLoading(false);
     }
