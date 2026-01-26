@@ -1,12 +1,6 @@
 import axios from 'axios';
 
 /**
- * @typedef {Object} StartChatPayload
- * @property {string} adId - Ad ID (Mongo ObjectId)
- * @property {string} receiverId - Receiver/Seller ID (Mongo ObjectId)
- */
-
-/**
  * @typedef {Object} ChatResponse
  * @property {boolean} success
  * @property {Object} chat - Chat object with _id
@@ -32,27 +26,27 @@ const getToken = () => {
 
 /**
  * Start a new chat with a seller
- * @param {StartChatPayload} payload - Chat start payload
+ * @param {string} adId - Ad ID (Mongo ObjectId) - must be from ad._id
  * @returns {Promise<ChatResponse>}
  * @throws {Error} If validation fails or request fails
  */
-export const startChat = async (payload) => {
-  const { adId, receiverId } = payload;
-
-  // Runtime validation: check required fields
-  if (!adId || typeof adId !== 'string' || adId.trim() === '') {
-    const error = new Error('Ad ID is required and must be a non-empty string');
-    console.error('[CHAT_API] Validation failed: adId missing or invalid', { adId, payload });
-    throw error;
+export const startChat = async (adId) => {
+  // Fix obligatoriu: NU trimite request dacă adId este null/undefined/""
+  if (!adId || adId === null || adId === undefined || adId === '' || String(adId).trim() === '') {
+    const errorMsg = 'Ad ID is required and cannot be null, undefined, or empty';
+    console.error('[CHAT_API] Validation failed: adId is null/undefined/empty', { 
+      adId, 
+      type: typeof adId,
+      value: adId 
+    });
+    console.error('[CHAT_API] Request blocked - not sending to backend');
+    throw new Error(errorMsg);
   }
 
-  if (!receiverId || typeof receiverId !== 'string' || receiverId.trim() === '') {
-    const error = new Error('Receiver ID is required and must be a non-empty string');
-    console.error('[CHAT_API] Validation failed: receiverId missing or invalid', { receiverId, payload });
-    throw error;
-  }
+  // Normalize adId to string
+  const adIdStr = String(adId).trim();
 
-  // Get token
+  // Verify token exists
   const token = getToken();
   if (!token) {
     const error = new Error('Authentication token is required');
@@ -65,23 +59,20 @@ export const startChat = async (payload) => {
   const url = `${API_URL}/chats/start`;
   const method = 'POST';
   
-  // Clean payload: ensure no undefined values
-  const requestBody = {
-    adId: String(adId).trim(),
-    receiverId: String(receiverId).trim()
+  // Normalizează payload-ul să fie EXACT: { ad: adId }
+  // NU adId, NU id, NU ad: obiect întreg
+  const payload = {
+    ad: adIdStr
   };
 
-  // Log request details
-  console.log('[CHAT_API] Request:', {
-    method,
-    url,
-    body: requestBody,
-    hasToken: !!token,
-    tokenLength: token.length
-  });
+  // Log request payload before sending
+  console.log('[CHAT_API] Request payload:', payload);
+  console.log('[CHAT_API] Request URL:', url);
+  console.log('[CHAT_API] Request method:', method);
+  console.log('[CHAT_API] Has token:', !!token);
 
   try {
-    const response = await axios.post(url, requestBody, {
+    const response = await axios.post(url, payload, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
@@ -96,22 +87,14 @@ export const startChat = async (payload) => {
 
     return response.data;
   } catch (error) {
-    // Log detailed error information
-    const errorDetails = {
-      message: error.message,
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      responseData: error.response?.data, // Важно! Точный body ответа backend
-      requestUrl: url,
-      requestBody: requestBody,
-      headers: error.response?.headers
-    };
-
-    console.error('[CHAT_API] Request failed:', errorDetails);
+    // Logging complet în catch
+    console.error('[CHAT_API] status:', error.response?.status);
+    console.error('[CHAT_API] response:', error.response?.data);
+    console.log('[CHAT_API] request payload:', payload);
     
-    // Log response data separately for visibility
+    // Log detailed error information
     if (error.response?.data) {
-      console.error('[CHAT_API] Backend error response:', JSON.stringify(error.response.data, null, 2));
+      console.error('[CHAT_API] Backend error response (full):', JSON.stringify(error.response.data, null, 2));
     }
 
     // Re-throw with more context

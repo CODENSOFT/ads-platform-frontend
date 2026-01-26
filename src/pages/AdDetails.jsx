@@ -71,44 +71,41 @@ const AdDetails = () => {
       return;
     }
 
-    // Calculate adId correctly: ad?._id || ad?.id
-    const adId = ad?._id || ad?.id;
+    // Asigură-te că adId este corect:
+    // - dacă ad vine din API, folosește ad._id (nu ad.id)
+    // - dacă vine din route params, citește param corect (useParams().id)
+    const adIdFromAd = ad?._id; // Folosește ad._id (NU ad.id)
+    const adIdFromRoute = id; // Din useParams().id
     
-    // Calculate receiverId correctly (seller of the ad)
-    const receiverId = ad?.user?._id || ad?.seller?._id || ad?.owner?._id || ad?.createdBy?._id || ad?.userId;
+    // Prioritate: ad._id (din API) > route param id
+    const adId = adIdFromAd || adIdFromRoute;
 
-    // Convert to strings and validate
-    const adIdStr = adId ? String(adId).trim() : '';
-    const receiverIdStr = receiverId ? String(receiverId).trim() : '';
+    // Log sursa exactă a adId
+    console.log('[CHAT_START] adId source:', {
+      fromAd: adIdFromAd,
+      fromRoute: adIdFromRoute,
+      final: adId,
+      adObject: ad ? { _id: ad._id, id: ad.id } : null
+    });
 
-    // Runtime validation: check if adId or receiverId are missing or invalid
-    if (!adIdStr || adIdStr === 'null' || adIdStr === 'undefined') {
-      console.error("[CHAT_START] Invalid adId", { adId, adIdStr, ad });
-      showError('Ad ID missing or invalid');
-      return;
-    }
-
-    if (!receiverIdStr || receiverIdStr === 'null' || receiverIdStr === 'undefined') {
-      console.error("[CHAT_START] Invalid receiverId", { receiverId, receiverIdStr, ad });
-      showError('Seller ID missing or invalid');
-      return;
-    }
-
-    // Prevent user from messaging themselves
-    if (receiverIdStr === String(user._id || user.id).trim()) {
-      showError("You can't message yourself");
+    // Runtime validation: NU trimite request dacă adId este null/undefined/""
+    if (!adId || adId === null || adId === undefined || adId === '' || String(adId).trim() === '') {
+      console.error('[CHAT_START] Invalid adId - request blocked', { 
+        adId, 
+        adIdFromAd, 
+        adIdFromRoute,
+        ad: ad ? { _id: ad._id, id: ad.id } : null
+      });
+      showError('Ad ID missing or invalid. Cannot start chat.');
       return;
     }
 
     setContacting(true);
     try {
-      // Use chatApi client with proper validation and logging
-      const response = await startChat({
-        adId: adIdStr,
-        receiverId: receiverIdStr
-      });
+      // Folosește startChat(adId) - funcția primește doar adId
+      const response = await startChat(adId);
       
-      // After OK response from backend: navigate to chat
+      // După răspuns OK de la backend: navighează la chat (cu id primit)
       const chatId = response?.chat?._id || response?.data?._id || response?._id;
       if (chatId) {
         navigate(`/chats/${chatId}`);
