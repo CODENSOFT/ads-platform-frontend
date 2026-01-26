@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { getAdById } from '../api/endpoints';
+import { startChat } from '../api/chatApi';
 import { useAuth } from '../auth/useAuth.js';
 import { useToast } from '../hooks/useToast';
 import { parseError } from '../utils/errorParser';
@@ -81,7 +81,7 @@ const AdDetails = () => {
     const adIdStr = adId ? String(adId).trim() : '';
     const receiverIdStr = receiverId ? String(receiverId).trim() : '';
 
-    // Validation: check if adId or receiverId are missing or invalid
+    // Runtime validation: check if adId or receiverId are missing or invalid
     if (!adIdStr || adIdStr === 'null' || adIdStr === 'undefined') {
       console.error("[CHAT_START] Invalid adId", { adId, adIdStr, ad });
       showError('Ad ID missing or invalid');
@@ -100,50 +100,24 @@ const AdDetails = () => {
       return;
     }
 
-    console.log("[CHAT_START] Sending request", { adId: adIdStr, receiverId: receiverIdStr });
-
-    // Get API URL and token
-    const envURL = import.meta.env.VITE_API_URL || "http://localhost:5001";
-    const API = envURL.endsWith('/api') ? envURL : `${envURL.replace(/\/+$/, '')}/api`;
-    const token = localStorage.getItem('token');
-
-    if (!token) {
-      console.error("[CHAT_START] No token found");
-      showError('Authentication required');
-      navigate('/login');
-      return;
-    }
-
     setContacting(true);
     try {
-      // Request: POST /api/chats/start with body { adId, receiverId }
-      const requestBody = {
+      // Use chatApi client with proper validation and logging
+      const response = await startChat({
         adId: adIdStr,
         receiverId: receiverIdStr
-      };
-      
-      console.log("[CHAT_START] Request body", requestBody);
-      console.log("[CHAT_START] Request URL", `${API}/chats/start`);
-
-      const response = await axios.post(`${API}/chats/start`, requestBody, {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
       });
       
-      console.log("[CHAT_START] Response", response.data);
-      
       // After OK response from backend: navigate to chat
-      const chatId = response.data?.chat?._id || response.data?.data?._id || response.data?._id;
+      const chatId = response?.chat?._id || response?.data?._id || response?._id;
       if (chatId) {
         navigate(`/chats/${chatId}`);
       } else {
         showError('Failed to start conversation');
       }
     } catch (err) {
-      console.error("[CHAT_START] Error", err.response?.data || err.message);
-      const errorMessage = parseError(err);
+      // Error is already logged in chatApi, just show user-friendly message
+      const errorMessage = err.responseData?.message || err.message || parseError(err);
       showError(errorMessage);
     } finally {
       setContacting(false);
