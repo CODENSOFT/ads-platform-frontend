@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { getAdById } from '../api/endpoints';
-import { startChat } from '../api/chat';
 import { useAuth } from '../auth/useAuth.js';
 import { useToast } from '../hooks/useToast';
 import { parseError } from '../utils/errorParser';
@@ -74,31 +74,32 @@ const AdDetails = () => {
     // Calculate adId correctly: ad?._id || ad?.id
     const adId = ad?._id || ad?.id;
     
-    // If adId missing -> show toast error "Ad ID missing" and stop (DO NOT send request)
-    if (!adId || typeof adId !== 'string' || adId.trim() === '') {
-      showError('Ad ID missing');
-      return;
-    }
-
     // Calculate receiverId correctly (seller of the ad)
     const receiverId = ad?.user?._id || ad?.seller?._id || ad?.owner?._id || ad?.createdBy?._id || ad?.userId;
-    
-    // If receiverId missing -> show toast error "Seller ID missing" and stop (DO NOT send request)
-    if (!receiverId || typeof receiverId !== 'string' || receiverId.trim() === '') {
-      showError('Seller ID missing');
+
+    // Validation: check if adId or receiverId are missing
+    if (!adId || !receiverId) {
+      console.error("[CHAT_START] Missing adId or receiverId", { adId, receiverId });
+      alert("Cannot start chat: invalid ad data");
       return;
     }
 
-    // If receiverId === user._id -> show toast error "You can't message yourself" and stop
-    if (receiverId === user._id) {
-      showError("You can't message yourself");
-      return;
-    }
+    console.log("[CHAT_START]", { adId, receiverId });
+
+    // Get API URL and token
+    const envURL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+    const API = envURL.endsWith('/api') ? envURL : `${envURL.replace(/\/+$/, '')}/api`;
+    const token = localStorage.getItem('token');
 
     setContacting(true);
     try {
-      // Request: POST /api/chats/start with body { receiverId, adId }
-      const response = await startChat(receiverId, adId);
+      // Request: POST /api/chats/start with body { adId, receiverId }
+      const response = await axios.post(`${API}/chats/start`, {
+        adId,
+        receiverId
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       
       // After OK response from backend: navigate to chat
       const chatId = response.data?.chat?._id || response.data?.data?._id || response.data?._id;
