@@ -65,43 +65,45 @@ const AdDetails = () => {
   };
 
   const handleContactSeller = async () => {
+    // If user not logged in -> navigate to login and stop
     if (!user) {
       navigate('/login');
       return;
     }
 
-    // Validate ad is loaded and has valid _id
-    if (!ad || !ad._id) {
-      showError('Ad is not loaded yet. Please refresh.');
-      return;
-    }
-
-    // Validate adId from route params
-    if (!id || typeof id !== 'string' || id.trim() === '') {
-      showError('Ad is not loaded yet. Please refresh.');
-      return;
-    }
-
-    const sellerUserId = ad?.user?._id || ad?.owner?._id;
+    // Calculate adId correctly: ad?._id || ad?.id
+    const adId = ad?._id || ad?.id;
     
-    // Validate receiverId exists and is not the current user
-    if (!sellerUserId || typeof sellerUserId !== 'string' || sellerUserId.trim() === '') {
-      showError('Unable to contact seller. Missing seller information.');
+    // If adId missing -> show toast error "Ad ID missing" and stop (DO NOT send request)
+    if (!adId || typeof adId !== 'string' || adId.trim() === '') {
+      showError('Ad ID missing');
       return;
     }
 
-    // Prevent user from messaging themselves
-    if (sellerUserId === user._id) {
-      showError('You cannot message yourself.');
+    // Calculate receiverId correctly (seller of the ad)
+    const receiverId = ad?.user?._id || ad?.seller?._id || ad?.owner?._id || ad?.createdBy?._id || ad?.userId;
+    
+    // If receiverId missing -> show toast error "Seller ID missing" and stop (DO NOT send request)
+    if (!receiverId || typeof receiverId !== 'string' || receiverId.trim() === '') {
+      showError('Seller ID missing');
+      return;
+    }
+
+    // If receiverId === user._id -> show toast error "You can't message yourself" and stop
+    if (receiverId === user._id) {
+      showError("You can't message yourself");
       return;
     }
 
     setContacting(true);
     try {
-      const response = await startChat(id, sellerUserId);
-      const conversationId = response.data?.chat?._id || response.data?.data?._id || response.data?._id;
-      if (conversationId) {
-        navigate(`/chats/${conversationId}`);
+      // Request: POST /api/chats/start with body { receiverId, adId }
+      const response = await startChat(receiverId, adId);
+      
+      // After OK response from backend: navigate to chat
+      const chatId = response.data?.chat?._id || response.data?.data?._id || response.data?._id;
+      if (chatId) {
+        navigate(`/chats/${chatId}`);
       } else {
         showError('Failed to start conversation');
       }
@@ -350,15 +352,15 @@ const AdDetails = () => {
                 <div style={{ display: 'flex', gap: '12px' }}>
                   <button
                     onClick={handleContactSeller}
-                    disabled={contacting || !ad || !ad._id || !id}
+                    disabled={contacting || !ad || !(ad?._id || ad?.id) || !(ad?.user?._id || ad?.seller?._id || ad?.owner?._id || ad?.createdBy?._id || ad?.userId)}
                     className="btn-primary"
                     style={{
                       flex: 1,
                       padding: '12px',
                       fontSize: '16px',
                       fontWeight: '600',
-                      opacity: (contacting || !ad || !ad._id || !id) ? 0.6 : 1,
-                      cursor: (contacting || !ad || !ad._id || !id) ? 'not-allowed' : 'pointer',
+                      opacity: (contacting || !ad || !(ad?._id || ad?.id) || !(ad?.user?._id || ad?.seller?._id || ad?.owner?._id || ad?.createdBy?._id || ad?.userId)) ? 0.6 : 1,
+                      cursor: (contacting || !ad || !(ad?._id || ad?.id) || !(ad?.user?._id || ad?.seller?._id || ad?.owner?._id || ad?.createdBy?._id || ad?.userId)) ? 'not-allowed' : 'pointer',
                     }}
                   >
                     {contacting ? 'Starting conversation...' : '💬 Contact Seller'}
