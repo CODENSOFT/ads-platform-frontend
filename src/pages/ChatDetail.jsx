@@ -35,10 +35,17 @@ const ChatDetail = () => {
         const chatsResponse = await getChats();
         const totalUnreadCount = chatsResponse.data?.totalUnread || 0;
         setTotalUnread(totalUnreadCount);
-      } catch {
-        // Silently fail if refresh fails
+      } catch (err) {
+        // Silent fail - never log 429
+        if (err?.response?.status === 429) {
+          return;
+        }
       }
     } catch (err) {
+      // Never log 429 errors
+      if (err?.response?.status === 429) {
+        return;
+      }
       const errorMessage = parseError(err);
       showError(errorMessage);
     } finally {
@@ -51,10 +58,10 @@ const ChatDetail = () => {
 
     fetchMessages();
 
-    // Poll messages every 4 seconds
+    // Poll messages every 30 seconds (reduced from 4s to prevent spam)
     pollIntervalRef.current = setInterval(() => {
       fetchMessages();
-    }, 4000);
+    }, 30000);
 
     return () => {
       if (pollIntervalRef.current) {

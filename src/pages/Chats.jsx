@@ -30,6 +30,11 @@ const Chats = () => {
         // Update totalUnread in context
         setTotalUnread(totalUnreadCount);
       } catch (err) {
+        // Never log 429 errors
+        if (err?.response?.status === 429) {
+          setLoading(false);
+          return;
+        }
         const errorMessage = parseError(err);
         showError(errorMessage);
       } finally {
@@ -51,8 +56,11 @@ const Chats = () => {
           
           setChats(Array.isArray(chatsData) ? chatsData : []);
           setTotalUnread(totalUnreadCount);
-        } catch {
-          // Silently fail on refetch to avoid spam
+        } catch (err) {
+          // Silent fail - never log 429
+          if (err?.response?.status === 429) {
+            return;
+          }
         }
       };
       fetchChats();

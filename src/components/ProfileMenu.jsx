@@ -18,7 +18,7 @@ const ProfileMenu = () => {
   const badgeText = totalUnread > 99 ? '99+' : String(totalUnread);
   const showBadge = totalUnread > 0;
 
-  // Polling: fetch unread count every 25 seconds
+  // Polling: fetch unread count every 30 seconds
   useEffect(() => {
     const fetchUnreadCount = async () => {
       if (!user) {
@@ -31,8 +31,11 @@ const ProfileMenu = () => {
         const response = await getChats();
         const totalUnreadCount = response.data?.totalUnread || 0;
         setTotalUnread(totalUnreadCount);
-      } catch {
-        // Silently fail on polling errors
+      } catch (err) {
+        // Silent fail - never log 429
+        if (err?.response?.status === 429) {
+          return;
+        }
       }
     };
 
@@ -40,10 +43,10 @@ const ProfileMenu = () => {
       // Initial fetch
       fetchUnreadCount();
 
-      // Poll every 25 seconds
+      // Poll every 30 seconds
       pollIntervalRef.current = setInterval(() => {
         fetchUnreadCount();
-      }, 25000);
+      }, 30000);
     }
 
     return () => {
@@ -61,8 +64,11 @@ const ProfileMenu = () => {
           const response = await getChats();
           const totalUnreadCount = response.data?.totalUnread || 0;
           setTotalUnread(totalUnreadCount);
-        } catch {
-          // Silently fail
+        } catch (err) {
+          // Silent fail - never log 429
+          if (err?.response?.status === 429) {
+            return;
+          }
         }
       };
       fetchUnreadCount();

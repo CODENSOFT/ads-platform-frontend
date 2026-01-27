@@ -27,6 +27,9 @@ export const sendMessage = (conversationId, text) => {
   return api.post(`/chats/${conversationId}/messages`, { text });
 };
 
+// Global backoff for polling endpoints
+let backoffUntil = 0;
+
 // Cache for unread-count (30 seconds)
 let unreadCountCache = null;
 let unreadCountCacheTime = 0;
@@ -48,6 +51,27 @@ export const getUnreadCount = async () => {
     return { success: true, count: 0 };
   }
 };
+
+/**
+ * Safe wrapper for getUnreadCount with backoff logic
+ * Prevents spamming backend on 429 errors
+ */
+export async function safeGetUnreadCount() {
+  const now = Date.now();
+  if (now < backoffUntil) {
+    return { skipped: true };
+  }
+
+  try {
+    return await getUnreadCount();
+  } catch (err) {
+    if (err?.response?.status === 429) {
+      backoffUntil = Date.now() + 60_000; // 60 seconds backoff
+      return { rateLimited: true };
+    }
+    throw err;
+  }
+}
 
 /**
  * Get unread count with 30 second cache

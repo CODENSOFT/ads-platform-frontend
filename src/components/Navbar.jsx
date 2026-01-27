@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth.js';
 import ProfileMenu from './ProfileMenu';
-import { getUnreadCount } from '../api/chat';
+import { safeGetUnreadCount } from '../api/chat';
 
 const Navbar = () => {
   const { user } = useAuth();
@@ -36,24 +36,35 @@ const Navbar = () => {
     }
   };
 
-  // Fetch unread count on mount and poll every 25s
+  // Fetch unread count on mount and poll every 30s
   useEffect(() => {
     let alive = true;
 
     const load = async () => {
       try {
-        const data = await getUnreadCount();
+        const data = await safeGetUnreadCount();
         if (!alive) return;
+        
+        // If skipped or rate limited, keep last known value
+        if (data?.skipped || data?.rateLimited) {
+          return;
+        }
+        
         const count = Number(data?.count || 0);
-        setUnread(Number.isFinite(count) ? count : 0);
+        if (Number.isFinite(count)) {
+          setUnread(count);
+        }
       } catch (e) {
-        // Silent fail, do not spam toast
+        // Silent fail - never log 429 or spam console
+        if (e?.response?.status === 429) {
+          return;
+        }
       }
     };
 
     if (user) {
       load();
-      const t = setInterval(load, 25000);
+      const t = setInterval(load, 30000); // 30 seconds
       return () => { 
         alive = false; 
         clearInterval(t); 
@@ -68,11 +79,22 @@ const Navbar = () => {
     if (user && (location.pathname === '/chats' || location.hash === '#/chats')) {
       const load = async () => {
         try {
-          const data = await getUnreadCount();
+          const data = await safeGetUnreadCount();
+          
+          // If skipped or rate limited, keep last known value
+          if (data?.skipped || data?.rateLimited) {
+            return;
+          }
+          
           const count = Number(data?.count || 0);
-          setUnread(Number.isFinite(count) ? count : 0);
+          if (Number.isFinite(count)) {
+            setUnread(count);
+          }
         } catch (e) {
-          // Silent fail
+          // Silent fail - never log 429
+          if (e?.response?.status === 429) {
+            return;
+          }
         }
       };
       load();
