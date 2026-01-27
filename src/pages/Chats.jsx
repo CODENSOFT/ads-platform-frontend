@@ -146,7 +146,7 @@ const Chats = () => {
     e.preventDefault();
     e.stopPropagation();
     
-    if (!window.confirm('Delete this conversation? This will remove all messages.')) {
+    if (!window.confirm('Delete this conversation? Messages will be removed.')) {
       return;
     }
 

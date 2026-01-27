@@ -134,8 +134,25 @@ export const deleteChat = async (chatId) => {
       }
     });
 
+    // Log successful response
+    if (import.meta.env.DEV) {
+      console.log('[CHAT_API] Delete success:', {
+        status: response.status,
+        data: response.data
+      });
+    }
+
     return response.data;
   } catch (error) {
+    // Logging similar to startChat
+    console.error('[CHAT_API] Delete status:', error.response?.status);
+    console.error('[CHAT_API] Delete response:', error.response?.data);
+    
+    // Log detailed error information
+    if (error.response?.data) {
+      console.error('[CHAT_API] Backend error response (full):', JSON.stringify(error.response.data, null, 2));
+    }
+
     // Re-throw with more context
     const enhancedError = new Error(
       error.response?.data?.message || 
