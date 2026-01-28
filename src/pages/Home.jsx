@@ -70,7 +70,6 @@ const Home = () => {
   const [recommendedAds, setRecommendedAds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ active: 0, newToday: 0 });
-  const [search, setSearch] = useState('');
 
   const categorySlugToLabel = useMemo(() => {
     const map = new Map();
@@ -113,14 +112,12 @@ const Home = () => {
   }, []);
 
   const handleCategoryClick = (slug) => {
+    const lastSearch = String(sessionStorage.getItem('last_ads_search') || '').trim();
+    if (lastSearch) {
+      navigate(`/ads?category=${slug}&search=${encodeURIComponent(lastSearch)}`);
+      return;
+    }
     navigate(`/ads?category=${slug}`);
-  };
-
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    const term = String(search || '').trim();
-    if (!term) return;
-    navigate(`/ads?search=${encodeURIComponent(term)}`);
   };
 
   return (
@@ -146,19 +143,6 @@ const Home = () => {
                 <div className="t-lead" style={{ marginBottom: 22 }}>
                   A clean marketplace experience for modern listings — fast search, clear filters, and premium presentation.
                 </div>
-
-                <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 18 }}>
-                  <input
-                    className="p-input"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search ads…"
-                    style={{ flex: 1, minWidth: 240 }}
-                  />
-                  <button type="submit" className="btn btn-primary">
-                    Search
-                  </button>
-                </form>
 
                 <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                   <Link to="/ads" className="btn btn-primary">

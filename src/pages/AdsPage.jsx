@@ -22,7 +22,6 @@ const AdsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [ads, setAds] = useState([]);
-  const [searchDraft, setSearchDraft] = useState('');
   const [pagination, setPagination] = useState({
     page: 1,
     pages: 1,
@@ -37,12 +36,9 @@ const AdsPage = () => {
   const search = searchParams.get('search') || '';
   const sort = searchParams.get('sort') || '-createdAt';
   const page = parseInt(searchParams.get('page') || '1', 10);
+  const limit = parseInt(searchParams.get('limit') || '20', 10);
   const minPrice = searchParams.get('minPrice') || '';
   const maxPrice = searchParams.get('maxPrice') || '';
-
-  useEffect(() => {
-    setSearchDraft(search);
-  }, [search]);
 
   const normalizedSearch = useMemo(() => String(search || '').trim().toLowerCase(), [search]);
 
@@ -51,7 +47,7 @@ const AdsPage = () => {
       setLoading(true);
       const params = {
         page,
-        limit: 20,
+        limit,
         sort,
       };
       
@@ -97,7 +93,7 @@ const AdsPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [category, search, sort, page, minPrice, maxPrice, normalizedSearch]);
+  }, [category, search, sort, page, limit, minPrice, maxPrice, normalizedSearch]);
 
   useEffect(() => {
     fetchAds();
@@ -130,17 +126,6 @@ const AdsPage = () => {
 
   const clearAll = () => setSearchParams({});
 
-  const applySearch = (e) => {
-    e.preventDefault();
-    const q = String(searchDraft || '').trim();
-    if (!q) {
-      // If cleared, remove search param
-      clearSearch();
-      return;
-    }
-    handleFilterChange('search', q);
-  };
-
   const handlePageChange = (newPage) => {
     const newParams = new URLSearchParams(searchParams);
     newParams.set('page', String(newPage));
@@ -165,37 +150,6 @@ const AdsPage = () => {
       }}>
         Filters
       </h3>
-
-      <form onSubmit={applySearch} style={{ marginBottom: '24px' }}>
-        <label style={{
-          display: 'block',
-          marginBottom: '8px',
-          fontSize: '14px',
-          fontWeight: '600',
-          color: 'var(--text)',
-        }}>
-          Search
-        </label>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <input
-            className="p-input"
-            value={searchDraft}
-            onChange={(e) => setSearchDraft(e.target.value)}
-            placeholder="e.g. iphone, bmw…"
-            style={{ flex: 1 }}
-          />
-          <button type="submit" className="btn btn-primary" style={{ padding: '10px 14px' }}>
-            Apply
-          </button>
-        </div>
-        {search && (
-          <div style={{ marginTop: 10 }}>
-            <button type="button" className="btn btn-secondary" style={{ padding: '8px 12px' }} onClick={clearSearch}>
-              Clear search
-            </button>
-          </div>
-        )}
-      </form>
 
       <div style={{ marginBottom: '24px' }}>
         <label style={{

@@ -9,31 +9,30 @@ const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const [searchValue, setSearchValue] = useState('');
+  const [navSearch, setNavSearch] = useState('');
   const [unread, setUnread] = useState(0);
 
   // Sync search input with URL param (for back/forward navigation)
   useEffect(() => {
     const searchParam = searchParams.get('search');
-    if (searchParam !== null) {
-      setSearchValue(searchParam);
-    } else if (location.pathname === '/' || location.pathname === '') {
-      // Only clear if we're on home page
-      setSearchValue('');
+    const isAdsRoute = location.pathname === '/ads' || location.hash.startsWith('#/ads');
+    if (isAdsRoute) {
+      setNavSearch(searchParam ? String(searchParam) : '');
+      return;
     }
+    // Keep user input when not on /ads; do not sync to unrelated routes
   }, [searchParams, location.pathname]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    const trimmedSearch = searchValue.trim();
-    
-    // Navigate to home with search param
-    if (trimmedSearch) {
-      navigate(`/?search=${encodeURIComponent(trimmedSearch)}`);
-    } else {
-      // Clear search if empty
-      navigate('/');
+    const q = String(navSearch || '').trim();
+    if (!q) {
+      sessionStorage.removeItem('last_ads_search');
+      navigate('/ads');
+      return;
     }
+    sessionStorage.setItem('last_ads_search', q);
+    navigate(`/ads?search=${encodeURIComponent(q)}`);
   };
 
   // Fetch unread count on mount and poll every 30s
@@ -140,19 +139,19 @@ const Navbar = () => {
         justifyContent: 'space-between',
         height: '70px',
       }}>
-        <Link 
-          to="/" 
+        <Link
+          to="/"
           style={{
             fontSize: '24px',
             fontWeight: '700',
-            color: '#007bff',
+            color: 'var(--green-600)',
             textDecoration: 'none',
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
           }}
         >
-          🏠 AdsPlatform
+          AdsPlatform
         </Link>
 
         {/* Search Input */}
@@ -172,8 +171,8 @@ const Navbar = () => {
           }}>
             <input
               type="text"
-              value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
+              value={navSearch}
+              onChange={(e) => setNavSearch(e.target.value)}
               placeholder="Caută anunțuri..."
               style={{
                 width: '100%',
@@ -184,7 +183,7 @@ const Navbar = () => {
                 outline: 'none',
                 transition: 'border-color 0.2s',
               }}
-              onFocus={(e) => e.currentTarget.style.borderColor = '#007bff'}
+              onFocus={(e) => e.currentTarget.style.borderColor = 'var(--green-600)'}
               onBlur={(e) => e.currentTarget.style.borderColor = '#ddd'}
             />
             <button
@@ -273,7 +272,7 @@ const Navbar = () => {
                 to="/register"
                 style={{
                   padding: '10px 20px',
-                  backgroundColor: '#007bff',
+                  backgroundColor: 'var(--green-600)',
                   color: 'white',
                   textDecoration: 'none',
                   borderRadius: '6px',
@@ -281,8 +280,8 @@ const Navbar = () => {
                   fontWeight: '500',
                   transition: 'background-color 0.2s',
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#0056b3'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#007bff'}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--green-700)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--green-600)'}
               >
                 Sign Up
               </Link>
