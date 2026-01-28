@@ -17,6 +17,17 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* Premium Green Theme Variables */
+  --bg: #f8faf9;
+  --card: #ffffff;
+  --text: #1a1a1a;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --green-500: #10b981;
+  --green-600: #059669;
+  --green-700: #047857;
+  --green-glow: rgba(16, 185, 129, 0.3);
 }
 
 body {
@@ -79,7 +90,7 @@ button:disabled {
 
 button:focus,
 button:focus-visible {
-  outline: 2px solid #007bff;
+  outline: 2px solid var(--green-600);
   outline-offset: 2px;
 }
 
@@ -94,8 +105,8 @@ input, textarea, select {
 
 input:focus, textarea:focus, select:focus {
   outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+  border-color: var(--green-600);
+  box-shadow: 0 0 0 3px var(--green-glow);
 }
 
 label {
@@ -132,12 +143,36 @@ label {
 }
 
 .btn-primary {
-  background-color: #007bff;
+  background: linear-gradient(135deg, var(--green-600) 0%, var(--green-700) 100%);
   color: white;
+  border-radius: 12px;
+  padding: 12px 24px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px var(--green-glow);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: #0056b3;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px var(--green-glow);
+  background: linear-gradient(135deg, var(--green-500) 0%, var(--green-600) 100%);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--green-600);
+  border: 2px solid var(--green-600);
+  border-radius: 12px;
+  padding: 12px 24px;
+  font-weight: 600;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--green-600);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px var(--green-glow);
 }
 
 .btn-secondary {

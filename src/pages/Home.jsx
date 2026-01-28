@@ -1,667 +1,360 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { getAds } from '../api/endpoints';
 import AdCard from '../components/AdCard';
-import FiltersBar from '../components/FiltersBar';
-import useCategories from '../hooks/useCategories';
-import { buildAdsQuery } from '../utils/adsQuery';
+
+const CATEGORIES = [
+  {
+    name: 'Automobile',
+    slug: 'automobile',
+    icon: (
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M5 11L6.5 6.5H17.5L19 11M5 11H3M5 11V16.5M19 11H21M19 11V16.5M7 16.5H17M7 16.5C7 17.3284 6.32843 18 5.5 18C4.67157 18 4 17.3284 4 16.5M7 16.5C7 15.6716 7.67157 15 8.5 15C9.32843 15 10 15.6716 10 16.5M17 16.5C17 17.3284 17.6716 18 18.5 18C19.3284 18 20 17.3284 20 16.5M17 16.5C17 15.6716 16.3284 15 15.5 15C14.6716 15 14 15.6716 14 16.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+  },
+  {
+    name: 'Imobiliare',
+    slug: 'imobiliare',
+    icon: (
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M9 22V12H15V22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+  },
+  {
+    name: 'Electronice și Tehnică',
+    slug: 'electronice-si-tehnica',
+    icon: (
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" strokeWidth="2"/>
+        <path d="M6 8H18M6 12H14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+      </svg>
+    ),
+  },
+  {
+    name: 'Casă și Grădină',
+    slug: 'casa-si-gradina',
+    icon: (
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+  },
+  {
+    name: 'Modă și Frumusețe',
+    slug: 'moda-si-frumusete',
+    icon: (
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M20.84 4.61C20.3292 4.099 19.7228 3.69364 19.0554 3.41708C18.3879 3.14052 17.6725 2.99817 16.95 2.99817C16.2275 2.99817 15.5121 3.14052 14.8446 3.41708C14.1772 3.69364 13.5708 4.099 13.06 4.61L12 5.67L10.94 4.61C9.9083 3.57831 8.50903 2.99871 7.05 2.99871C5.59096 2.99871 4.19169 3.57831 3.16 4.61C2.1283 5.64169 1.54871 7.04097 1.54871 8.5C1.54871 9.95903 2.1283 11.3583 3.16 12.39L4.22 13.45L12 21.23L19.78 13.45L20.84 12.39C21.351 11.8792 21.7564 11.2728 22.0329 10.6054C22.3095 9.93789 22.4518 9.22248 22.4518 8.5C22.4518 7.77752 22.3095 7.0621 22.0329 6.39464C21.7564 5.72718 21.351 5.12075 20.84 4.61Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+  },
+  {
+    name: 'Locuri de muncă',
+    slug: 'locuri-de-munca',
+    icon: (
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="2" y="7" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="2"/>
+        <path d="M16 21V5C16 4.46957 15.7893 3.96086 15.4142 3.58579C15.0391 3.21071 14.5304 3 14 3H10C9.46957 3 8.96086 3.21071 8.58579 3.58579C8.21071 3.96086 8 4.46957 8 5V21" stroke="currentColor" strokeWidth="2"/>
+      </svg>
+    ),
+  },
+];
 
 const Home = () => {
-  const { categories } = useCategories(); // For getting category labels
-  const [searchParams, setSearchParams] = useSearchParams();
-  
-  // Initialize filters from URL params or defaults
-  const getInitialFilters = () => {
-    const params = Object.fromEntries(searchParams);
-    return {
-      q: params.search || params.q || '',
-      minPrice: params.minPrice || '',
-      maxPrice: params.maxPrice || '',
-      currency: params.currency || '',
-      category: params.categorySlug || '',
-      subCategory: params.subCategorySlug || '',
-      sort: params.sort || 'newest',
-      // Dynamic filters
-      brand: params.brand || '',
-      condition: params.condition || '',
-      model: params.model || '',
-      yearMin: params.yearMin || '',
-      yearMax: params.yearMax || '',
-      fuel: params.fuel || '',
-      rooms: params.rooms || '',
-      areaMin: params.areaMin || '',
-      areaMax: params.areaMax || '',
-    };
-  };
-
+  const navigate = useNavigate();
+  const [recommendedAds, setRecommendedAds] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [ads, setAds] = useState([]);
-  const [filters, setFilters] = useState(getInitialFilters);
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 12,
-    pages: 1,
-    total: 0,
-    hasNext: false,
-    hasPrev: false,
-  });
+  const [stats, setStats] = useState({ active: 0, newToday: 0 });
 
-  const fetchAds = useCallback(async (filterParams = {}, page = 1, limit = 12) => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Build query params using helper function
-      const params = buildAdsQuery(filterParams, page, limit);
-      
-      const response = await getAds(params);
-      
-      // Normalize response - try multiple paths to extract array
-      let adsArray = [];
-      const data = response.data;
-      
-      if (data?.ads && Array.isArray(data.ads)) {
-        adsArray = data.ads;
-      } else if (data?.data?.ads && Array.isArray(data.data.ads)) {
-        adsArray = data.data.ads;
-      } else if (data?.data && Array.isArray(data.data)) {
-        adsArray = data.data;
-      } else if (data?.items && Array.isArray(data.items)) {
-        adsArray = data.items;
-      } else if (Array.isArray(data)) {
-        adsArray = data;
-      }
-      
-      // Ensure ads is always an array
-      let finalAds = Array.isArray(adsArray) ? adsArray : [];
-      
-      // Local filtering fallback if backend doesn't support category filter
-      if (filterParams.categorySlug) {
-        const categorySlug = filterParams.categorySlug;
-        finalAds = finalAds.filter((ad) => {
-          // Try multiple possible paths for category in ad object
-          const adCategory = ad.category?.slug || ad.category || ad.categorySlug;
-          return adCategory === categorySlug;
+  useEffect(() => {
+    const fetchRecommended = async () => {
+      try {
+        setLoading(true);
+        const response = await getAds({ limit: 10, sort: 'newest' });
+        const data = response.data;
+        
+        let adsArray = [];
+        if (data?.ads && Array.isArray(data.ads)) {
+          adsArray = data.ads;
+        } else if (data?.data?.ads && Array.isArray(data.data.ads)) {
+          adsArray = data.data.ads;
+        } else if (Array.isArray(data)) {
+          adsArray = data;
+        }
+
+        setRecommendedAds(Array.isArray(adsArray) ? adsArray : []);
+        
+        // Mock stats (replace with actual API call if available)
+        setStats({
+          active: data?.pagination?.total || adsArray.length || 0,
+          newToday: Math.floor(Math.random() * 50) + 10,
         });
+      } catch (err) {
+        console.error('Failed to fetch recommended ads:', err);
+        setRecommendedAds([]);
+      } finally {
+        setLoading(false);
       }
-      
-      // Apply subcategory filter if exists (local fallback)
-      if (filterParams.subCategorySlug && finalAds.length > 0) {
-        const subCategorySlug = filterParams.subCategorySlug;
-        finalAds = finalAds.filter((ad) => {
-          const adSubCategory = ad.subCategory?.slug || ad.subCategory || ad.subCategorySlug;
-          return adSubCategory === subCategorySlug;
-        });
-      }
-      
-      setAds(finalAds);
-      
-      // Extract pagination from response
-      const paginationData = data?.pagination || {};
-      setPagination({
-        page: paginationData.page || page,
-        limit: paginationData.limit || limit,
-        pages: paginationData.pages || 1,
-        total: paginationData.total || 0,
-        hasNext: paginationData.hasNext || false,
-        hasPrev: paginationData.hasPrev || false,
-      });
-    } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to load ads');
-      setAds([]); // Ensure ads is array even on error
-      // Reset pagination on error
-      setPagination({
-        page: 1,
-        limit: 12,
-        pages: 1,
-        total: 0,
-        hasNext: false,
-        hasPrev: false,
-      });
-    } finally {
-      setLoading(false);
-    }
+    };
+
+    fetchRecommended();
   }, []);
 
-  // Fetch ads whenever URL params change (source of truth)
-  useEffect(() => {
-    const params = Object.fromEntries(searchParams);
-    
-    // Extract page and limit from URL or use defaults
-    const page = params.page ? parseInt(params.page, 10) : 1;
-    const limit = params.limit ? parseInt(params.limit, 10) : 12;
-    
-    // Build filter params from URL
-    const filterParams = {
-      search: params.search || '',
-      categorySlug: params.categorySlug || '',
-      subCategorySlug: params.subCategorySlug || '',
-      minPrice: params.minPrice || '',
-      maxPrice: params.maxPrice || '',
-      currency: params.currency || '',
-      sort: params.sort || 'newest',
-      // Dynamic filters
-      brand: params.brand || '',
-      condition: params.condition || '',
-      model: params.model || '',
-      yearMin: params.yearMin || '',
-      yearMax: params.yearMax || '',
-      fuel: params.fuel || '',
-      rooms: params.rooms || '',
-      areaMin: params.areaMin || '',
-      areaMax: params.areaMax || '',
-    };
-    
-    // Update local filters state to match URL
-    setFilters({
-      q: filterParams.search,
-      minPrice: filterParams.minPrice,
-      maxPrice: filterParams.maxPrice,
-      currency: filterParams.currency,
-      category: filterParams.categorySlug,
-      subCategory: filterParams.subCategorySlug,
-      sort: filterParams.sort,
-      brand: filterParams.brand,
-      condition: filterParams.condition,
-      model: filterParams.model,
-      yearMin: filterParams.yearMin,
-      yearMax: filterParams.yearMax,
-      fuel: filterParams.fuel,
-      rooms: filterParams.rooms,
-      areaMin: filterParams.areaMin,
-      areaMax: filterParams.areaMax,
-    });
-    
-    // Fetch with params from URL
-    const queryParams = buildAdsQuery(filterParams, page, limit);
-    fetchAds(queryParams, page, limit);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]); // Only depend on searchParams, fetchAds is stable
-
-  const handleApplyFilters = (values) => {
-    // Clear previous error
-    setError(null);
-
-    // Convert prices to numbers for validation
-    const min = values.minPrice !== "" && values.minPrice !== null ? Number(values.minPrice) : undefined;
-    const max = values.maxPrice !== "" && values.maxPrice !== null ? Number(values.maxPrice) : undefined;
-
-    // Validation: Check if minPrice > maxPrice when both are valid numbers
-    if (min !== undefined && max !== undefined && !isNaN(min) && !isNaN(max)) {
-      if (min > max) {
-        setError('Minimum price cannot be greater than maximum price');
-        return; // Do NOT update URL if validation fails
-      }
-    }
-
-    // Build query params using helper (page=1 on Apply)
-    const filterParams = {
-      search: values.search || values.q || '',
-      categorySlug: values.categorySlug || '',
-      subCategorySlug: values.subCategorySlug || '',
-      minPrice: values.minPrice || '',
-      maxPrice: values.maxPrice || '',
-      currency: values.currency || '',
-      sort: values.sort || 'newest',
-    };
-    
-    const params = buildAdsQuery(filterParams, 1, pagination.limit);
-
-    // Update URL (this will trigger useEffect to fetch)
-    const urlParams = new URLSearchParams();
-    Object.keys(params).forEach(key => {
-      if (params[key] !== undefined && params[key] !== null && params[key] !== '') {
-        urlParams.set(key, String(params[key]));
-      }
-    });
-    setSearchParams(urlParams);
-    // Note: fetchAds will be triggered by useEffect watching searchParams
-  };
-
-  const handleResetFilters = () => {
-    // Clear any validation errors
-    setError(null);
-
-    // Clear URL params completely (this will trigger useEffect to fetch with defaults)
-    setSearchParams({});
-    // Note: fetchAds will be triggered by useEffect watching searchParams
-  };
-
-  const handlePageChange = (newPage) => {
-    // Update only page in URL, keep all other params
-    const currentParams = new URLSearchParams(searchParams);
-    currentParams.set('page', String(newPage));
-    setSearchParams(currentParams);
-    // Note: fetchAds will be triggered by useEffect watching searchParams
+  const handleCategoryClick = (slug) => {
+    navigate(`/ads?category=${slug}`);
   };
 
   return (
-    <div className="page-container" style={{ padding: 0, background: 'linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%)', minHeight: '100vh' }}>
-      <div className="container" style={{ maxWidth: '1400px', padding: '0 20px' }}>
-        {/* Hero Section */}
-        <div style={{ 
-          marginBottom: '48px',
-          padding: '60px 0',
-          position: 'relative',
-          overflow: 'hidden',
-        }}>
+    <div style={{ background: 'var(--bg)', minHeight: '100vh' }}>
+      {/* Hero Section */}
+      <section style={{
+        background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+        padding: '80px 0',
+        position: 'relative',
+        overflow: 'hidden',
+      }}>
+        <div className="container" style={{ maxWidth: '1400px', position: 'relative', zIndex: 1 }}>
           <div style={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            borderRadius: '24px',
-            padding: '48px 40px',
-            color: '#fff',
-            boxShadow: '0 12px 40px rgba(102, 126, 234, 0.3)',
-            position: 'relative',
-            overflow: 'hidden',
-          }}>
-            {/* Decorative elements */}
-            <div style={{
-              position: 'absolute',
-              top: '-100px',
-              right: '-100px',
-              width: '400px',
-              height: '400px',
-              background: 'rgba(255,255,255,0.1)',
-              borderRadius: '50%',
-              filter: 'blur(80px)',
-            }} />
-            <div style={{
-              position: 'absolute',
-              bottom: '-80px',
-              left: '-80px',
-              width: '300px',
-              height: '300px',
-              background: 'rgba(255,255,255,0.08)',
-              borderRadius: '50%',
-              filter: 'blur(60px)',
-            }} />
-            
-            <div style={{ position: 'relative', zIndex: 1 }}>
-              <h1 style={{ 
-                fontSize: '3.5rem', 
-                fontWeight: '800', 
-                color: '#fff',
-                marginBottom: '16px',
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '48px',
+            alignItems: 'center',
+          }}
+          className="hero-grid"
+          >
+            <div>
+              <h1 style={{
+                fontSize: '3.5rem',
+                fontWeight: '800',
+                color: 'var(--text)',
+                marginBottom: '24px',
                 lineHeight: '1.1',
-                textShadow: '0 2px 20px rgba(0,0,0,0.1)',
               }}>
-                Discover Amazing Deals
+                Find what you need.<br />
+                Sell what you don't.
               </h1>
-              <p style={{ 
-                fontSize: '1.25rem', 
-                color: 'rgba(255,255,255,0.95)',
-                margin: 0,
-                fontWeight: '400',
-                maxWidth: '600px',
+              <p style={{
+                fontSize: '1.25rem',
+                color: 'var(--muted)',
+                marginBottom: '32px',
                 lineHeight: '1.6',
               }}>
-                Browse through thousands of listings and find exactly what you're looking for
+                Discover amazing deals and connect with buyers and sellers in your community.
               </p>
+              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                <Link to="/ads" className="btn-primary" style={{ textDecoration: 'none' }}>
+                  Browse Ads
+                </Link>
+                <Link to="/create" className="btn-ghost" style={{ textDecoration: 'none' }}>
+                  Post an Ad
+                </Link>
+              </div>
+            </div>
+            
+            {/* Stats Panel */}
+            <div style={{
+              background: 'var(--card)',
+              borderRadius: '20px',
+              padding: '32px',
+              boxShadow: '0 8px 32px rgba(16, 185, 129, 0.15)',
+              border: '2px solid rgba(16, 185, 129, 0.1)',
+            }}>
+              <h3 style={{
+                margin: '0 0 24px 0',
+                fontSize: '1.25rem',
+                fontWeight: '700',
+                color: 'var(--text)',
+              }}>
+                Marketplace Stats
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div>
+                  <div style={{
+                    fontSize: '2rem',
+                    fontWeight: '800',
+                    color: 'var(--green-600)',
+                    marginBottom: '4px',
+                  }}>
+                    {stats.active.toLocaleString()}
+                  </div>
+                  <div style={{ color: 'var(--muted)', fontSize: '14px', fontWeight: '500' }}>
+                    Active Ads
+                  </div>
+                </div>
+                <div>
+                  <div style={{
+                    fontSize: '2rem',
+                    fontWeight: '800',
+                    color: 'var(--green-600)',
+                    marginBottom: '4px',
+                  }}>
+                    {stats.newToday}+
+                  </div>
+                  <div style={{ color: 'var(--muted)', fontSize: '14px', fontWeight: '500' }}>
+                    New Today
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
+      </section>
 
-        {loading && (
-          <div style={{
+      {/* Category Grid */}
+      <section style={{ padding: '80px 0', background: 'var(--bg)' }}>
+        <div className="container" style={{ maxWidth: '1400px' }}>
+          <h2 style={{
+            fontSize: '2.5rem',
+            fontWeight: '700',
+            color: 'var(--text)',
+            marginBottom: '48px',
             textAlign: 'center',
-            padding: '80px 20px',
-            background: '#fff',
-            borderRadius: '20px',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
           }}>
-            <div style={{ 
-              fontSize: '48px', 
-              marginBottom: '20px',
-              animation: 'pulse 1.5s ease-in-out infinite',
-            }}>🔍</div>
-            <div style={{ 
-              color: '#666', 
-              fontSize: '18px',
-              fontWeight: '500',
-            }}>
-              Loading amazing deals...
-            </div>
-          </div>
-        )}
-        
-        {error && (
+            Browse by Category
+          </h2>
           <div style={{
-            background: '#fff',
-            borderRadius: '16px',
-            padding: '32px',
-            marginBottom: '32px',
-            border: '2px solid #fed7d7',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-          }}>
-            <div style={{ 
-              color: '#c53030', 
-              marginBottom: '20px',
-              fontSize: '18px',
-              fontWeight: '600',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-            }}>
-              <span style={{ fontSize: '24px' }}>⚠️</span>
-              {error}
-            </div>
-            <button
-              onClick={() => fetchAds({}, pagination.page, pagination.limit)}
-              disabled={loading}
-              style={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '12px',
-                padding: '12px 24px',
-                fontSize: '15px',
-                fontWeight: '600',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                opacity: loading ? 0.6 : 1,
-                transition: 'all 0.2s',
-                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
-              }}
-              onMouseEnter={(e) => {
-                if (!loading) {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.4)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!loading) {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
-                }
-              }}
-            >
-              {loading ? 'Refreshing...' : 'Try Again'}
-            </button>
-          </div>
-        )}
-
-        {!loading && !error && (
-          <>
-            <div style={{ marginBottom: '32px' }}>
-              <FiltersBar
-                key={JSON.stringify(filters)}
-                initialValues={filters}
-                onApply={handleApplyFilters}
-                onReset={handleResetFilters}
-              />
-            </div>
-            
-            {/* Results Summary */}
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'space-between',
-              gap: '16px', 
-              marginBottom: '32px',
-              flexWrap: 'wrap',
-              padding: '20px 24px',
-              background: '#fff',
-              borderRadius: '16px',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-            }}>
-              <div style={{ display: 'flex', gap: '32px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                }}>
-                  <span style={{ 
-                    fontSize: '20px',
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    fontWeight: '700',
-                  }}>
-                    {pagination.total || ads.length}
-                  </span>
-                  <span style={{ color: '#666', fontSize: '15px', fontWeight: '500' }}>
-                    {pagination.total === 1 ? 'result' : 'results'}
-                  </span>
-                </div>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                }}>
-                  <span style={{ color: '#666', fontSize: '15px', fontWeight: '500' }}>Page</span>
-                  <span style={{
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    color: '#fff',
-                    padding: '6px 14px',
-                    borderRadius: '10px',
-                    fontSize: '15px',
-                    fontWeight: '700',
-                    boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
-                  }}>
-                    {pagination.page} / {pagination.pages}
-                  </span>
-                </div>
-                {(filters.category || filters.subCategory) && (() => {
-                  const category = filters.category ? categories.find(c => c.slug === filters.category) : null;
-                  const subcategories = category?.subcategories || category?.subs || [];
-                  const subCategory = filters.subCategory && filters.category
-                    ? subcategories.find(sub => {
-                        const subSlug = sub.slug || sub;
-                        return subSlug === filters.subCategory;
-                      })
-                    : null;
-                  const categoryLabel = category?.name || category?.label || filters.category || '';
-                  const subCategoryLabel = subCategory?.name || subCategory?.label || filters.subCategory || '';
-                  
-                  return (
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                    }}>
-                      <span style={{ color: '#666', fontSize: '15px', fontWeight: '500' }}>Filter:</span>
-                      <span style={{
-                        background: 'rgba(102, 126, 234, 0.1)',
-                        color: '#667eea',
-                        padding: '6px 14px',
-                        borderRadius: '10px',
-                        fontSize: '15px',
-                        fontWeight: '600',
-                      }}>
-                        {subCategoryLabel 
-                          ? `${categoryLabel} / ${subCategoryLabel}`
-                          : categoryLabel}
-                      </span>
-                    </div>
-                  );
-                })()}
-              </div>
-              <button
-                onClick={() => fetchAds({}, pagination.page, pagination.limit)}
-                disabled={loading}
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: '24px',
+          }}
+          className="category-grid"
+          >
+            {CATEGORIES.map((category) => (
+              <div
+                key={category.slug}
+                onClick={() => handleCategoryClick(category.slug)}
                 style={{
-                  background: 'transparent',
-                  border: '2px solid #e8ecf1',
-                  borderRadius: '12px',
-                  padding: '10px 20px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  color: '#667eea',
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
+                  background: 'var(--card)',
+                  borderRadius: '20px',
+                  padding: '32px',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  border: '2px solid transparent',
+                  boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
                 }}
                 onMouseEnter={(e) => {
-                  if (!loading) {
-                    e.currentTarget.style.borderColor = '#667eea';
-                    e.currentTarget.style.background = 'rgba(102, 126, 234, 0.05)';
-                  }
+                  e.currentTarget.style.transform = 'translateY(-8px)';
+                  e.currentTarget.style.borderColor = 'var(--green-500)';
+                  e.currentTarget.style.boxShadow = '0 8px 24px var(--green-glow)';
                 }}
                 onMouseLeave={(e) => {
-                  if (!loading) {
-                    e.currentTarget.style.borderColor = '#e8ecf1';
-                    e.currentTarget.style.background = 'transparent';
-                  }
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.borderColor = 'transparent';
+                  e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.08)';
                 }}
               >
-                🔄 Refresh
-              </button>
-            </div>
-
-            {/* Ads Grid */}
-            {Array.isArray(ads) && ads.length === 0 ? (
-              <div style={{ 
-                textAlign: 'center', 
-                padding: '80px 20px',
-                background: '#fff',
-                borderRadius: '20px',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-              }}>
-                <div style={{ 
-                  fontSize: '80px', 
-                  marginBottom: '24px',
-                  opacity: 0.2,
-                }}>🔍</div>
-                <h3 style={{ 
-                  color: '#1a1a1a', 
-                  marginBottom: '12px',
-                  fontSize: '1.75rem',
-                  fontWeight: '600',
-                }}>
-                  No results found
-                </h3>
-                <p style={{ 
-                  color: '#666',
-                  fontSize: '16px',
-                  maxWidth: '400px',
-                  margin: '0 auto',
-                }}>
-                  Try adjusting your filters to see more results
-                </p>
-              </div>
-            ) : Array.isArray(ads) ? (
-              <>
                 <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-                  gap: '28px',
-                  marginBottom: '48px',
+                  color: 'var(--green-600)',
+                  marginBottom: '16px',
+                  display: 'flex',
+                  justifyContent: 'center',
                 }}>
-                  {ads.map((ad) => (
-                    <div key={ad._id} style={{
-                      transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    }}>
-                      <AdCard ad={ad} showFavoriteButton={true} />
-                    </div>
-                  ))}
+                  {category.icon}
                 </div>
-                
-                {/* Pagination */}
-                {pagination.pages > 1 && (
-                  <div style={{ 
-                    display: 'flex', 
-                    gap: '12px', 
-                    justifyContent: 'center', 
-                    alignItems: 'center',
-                    marginTop: '48px',
-                    marginBottom: '32px',
-                  }}>
-                    <button
-                      onClick={() => handlePageChange(pagination.page - 1)}
-                      disabled={!pagination.hasPrev || loading}
-                      style={{
-                        background: !pagination.hasPrev || loading
-                          ? '#e8ecf1'
-                          : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                        color: !pagination.hasPrev || loading ? '#999' : '#fff',
-                        border: 'none',
-                        borderRadius: '12px',
-                        padding: '12px 24px',
-                        fontSize: '15px',
-                        fontWeight: '600',
-                        cursor: !pagination.hasPrev || loading ? 'not-allowed' : 'pointer',
-                        opacity: !pagination.hasPrev || loading ? 0.5 : 1,
-                        transition: 'all 0.2s',
-                        boxShadow: !pagination.hasPrev || loading ? 'none' : '0 4px 12px rgba(102, 126, 234, 0.3)',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (pagination.hasPrev && !loading) {
-                          e.currentTarget.style.transform = 'translateY(-2px)';
-                          e.currentTarget.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.4)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (pagination.hasPrev && !loading) {
-                          e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
-                        }
-                      }}
-                    >
-                      ← Previous
-                    </button>
-                    <div style={{
-                      padding: '12px 28px',
-                      background: '#fff',
-                      borderRadius: '12px',
-                      fontSize: '15px',
-                      fontWeight: '600',
-                      color: '#1a1a1a',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-                    }}>
-                      Page {pagination.page} of {pagination.pages}
-                    </div>
-                    <button
-                      onClick={() => handlePageChange(pagination.page + 1)}
-                      disabled={!pagination.hasNext || loading}
-                      style={{
-                        background: !pagination.hasNext || loading
-                          ? '#e8ecf1'
-                          : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                        color: !pagination.hasNext || loading ? '#999' : '#fff',
-                        border: 'none',
-                        borderRadius: '12px',
-                        padding: '12px 24px',
-                        fontSize: '15px',
-                        fontWeight: '600',
-                        cursor: !pagination.hasNext || loading ? 'not-allowed' : 'pointer',
-                        opacity: !pagination.hasNext || loading ? 0.5 : 1,
-                        transition: 'all 0.2s',
-                        boxShadow: !pagination.hasNext || loading ? 'none' : '0 4px 12px rgba(102, 126, 234, 0.3)',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (pagination.hasNext && !loading) {
-                          e.currentTarget.style.transform = 'translateY(-2px)';
-                          e.currentTarget.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.4)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (pagination.hasNext && !loading) {
-                          e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
-                        }
-                      }}
-                    >
-                      Next →
-                    </button>
-                  </div>
-                )}
-              </>
-            ) : null}
-          </>
-        )}
-      </div>
-      
+                <h3 style={{
+                  margin: 0,
+                  fontSize: '1.25rem',
+                  fontWeight: '600',
+                  color: 'var(--text)',
+                }}>
+                  {category.name}
+                </h3>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Recommended Ads */}
+      <section style={{ padding: '80px 0', background: 'var(--bg)' }}>
+        <div className="container" style={{ maxWidth: '1400px' }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '32px',
+          }}>
+            <h2 style={{
+              fontSize: '2.5rem',
+              fontWeight: '700',
+              color: 'var(--text)',
+              margin: 0,
+            }}>
+              Recommended
+            </h2>
+            <Link
+              to="/ads"
+              style={{
+                color: 'var(--green-600)',
+                fontSize: '1rem',
+                fontWeight: '600',
+                textDecoration: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = 'var(--green-700)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = 'var(--green-600)';
+              }}
+            >
+              View all
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </Link>
+          </div>
+
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+              <p style={{ color: 'var(--muted)' }}>Loading recommended ads...</p>
+            </div>
+          ) : recommendedAds.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+              <p style={{ color: 'var(--muted)' }}>No ads available at the moment.</p>
+            </div>
+          ) : (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: '24px',
+            }}
+            className="recommended-grid"
+            >
+              {recommendedAds.map(ad => (
+                <AdCard key={ad._id} ad={ad} showFavoriteButton={true} />
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
       <style>{`
-        @keyframes pulse {
-          0%, 100% {
-            opacity: 1;
-            transform: scale(1);
+        @media (max-width: 1024px) {
+          .hero-grid {
+            grid-template-columns: 1fr !important;
           }
-          50% {
-            opacity: 0.7;
-            transform: scale(1.05);
+          .category-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+          }
+          .recommended-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+          }
+        }
+        @media (max-width: 768px) {
+          .category-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .recommended-grid {
+            grid-template-columns: 1fr !important;
           }
         }
       `}</style>

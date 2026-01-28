@@ -13,6 +13,7 @@ import CreateAd from './pages/CreateAd';
 import MyAds from './pages/MyAds';
 import Chats from './pages/Chats';
 import ChatDetail from './pages/ChatDetail';
+import AdsPage from './pages/AdsPage';
 
 const CatchAllRedirect = () => {
   return <Navigate to="/" replace />;
@@ -63,6 +64,7 @@ const App = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/ads/:id" element={<AdDetails />} />
+        <Route path="/ads" element={<AdsPage />} />
         
         {/* ✅ PUBLIC HOME */}
         <Route path="/" element={<Home />} />
