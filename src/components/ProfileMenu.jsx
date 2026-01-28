@@ -18,14 +18,29 @@ const ProfileMenu = () => {
   const badgeText = totalUnread > 99 ? '99+' : String(totalUnread);
   const showBadge = totalUnread > 0;
 
-  // Polling: fetch unread count every 30 seconds
+  // Polling: fetch unread count every 30 seconds (throttled)
   useEffect(() => {
+    // HARD GUARD: Do NOT poll if user is missing
+    if (!user) {
+      setTotalUnread(0);
+      return;
+    }
+
+    let lastFetchTime = 0;
+    const MIN_POLL_INTERVAL_MS = 30000; // 30 seconds minimum
+
     const fetchUnreadCount = async () => {
       // STOP calling protected endpoints when token missing
       const token = localStorage.getItem('token');
       if (!token || !user) {
         setTotalUnread(0);
         return;
+      }
+
+      // Throttle: prevent calls faster than 30 seconds
+      const now = Date.now();
+      if (now - lastFetchTime < MIN_POLL_INTERVAL_MS) {
+        return; // Skip if called too soon
       }
 
       try {
@@ -40,6 +55,7 @@ const ProfileMenu = () => {
         
         const totalUnreadCount = response.data?.totalUnread || 0;
         setTotalUnread(totalUnreadCount);
+        lastFetchTime = Date.now();
       } catch (err) {
         // Silent fail - never log 429
         if (err?.response?.status === 429) {
@@ -53,21 +69,18 @@ const ProfileMenu = () => {
       }
     };
 
-    if (user) {
-      // Initial fetch
-      fetchUnreadCount();
+    // Initial fetch
+    fetchUnreadCount();
 
-      // Poll every 30 seconds
-      pollIntervalRef.current = setInterval(() => {
-        fetchUnreadCount();
-      }, 30000);
-    } else {
-      setTotalUnread(0);
-    }
+    // Poll every 30 seconds
+    pollIntervalRef.current = setInterval(() => {
+      fetchUnreadCount();
+    }, MIN_POLL_INTERVAL_MS);
 
     return () => {
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
       }
     };
   }, [user, setTotalUnread]);

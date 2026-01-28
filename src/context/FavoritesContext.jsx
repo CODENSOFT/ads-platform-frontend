@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../auth/useAuth.js';
 import { getFavorites, addFavorite as addFavoriteAPI, removeFavorite as removeFavoriteAPI } from '../api/endpoints';
 import { FavoritesContext } from './FavoritesContext';
@@ -8,6 +8,7 @@ export const FavoritesProvider = ({ children }) => {
   const [favorites, setFavorites] = useState([]); // Full ad objects for Favorites page
   const [loading, setLoading] = useState(false);
   const { token, user } = useAuth();
+  const lastTokenRef = useRef(null);
 
   // Load favorites from backend (source of truth)
   const loadFavorites = useCallback(async () => {
@@ -199,11 +200,20 @@ export const FavoritesProvider = ({ children }) => {
 
   // Load favorites when token exists, clear on logout
   useEffect(() => {
-    if (token && user) {
-      loadFavorites();
-    } else {
+    // HARD GUARD: Do NOT call API if token is missing
+    if (!token || !user) {
       clearFavorites();
+      lastTokenRef.current = null;
+      return;
     }
+
+    // Guard: Only load if token changed (prevent refetch loops)
+    if (lastTokenRef.current === token) {
+      return;
+    }
+
+    lastTokenRef.current = token;
+    loadFavorites();
   }, [token, user, loadFavorites, clearFavorites]);
 
 

@@ -1,6 +1,6 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getRecommendedAds } from '../api/endpoints';
+import { getAds } from '../api/endpoints';
 import AdCard from '../components/AdCard';
 
 const CATEGORIES = [
@@ -55,7 +55,7 @@ const CATEGORIES = [
   },
   {
     name: 'Locuri de muncă',
-    slug: 'joburi',
+    slug: 'locuri-de-munca',
     icon: (
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="2" y="7" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="2"/>
@@ -69,19 +69,12 @@ const Home = () => {
   const navigate = useNavigate();
   const [recommendedAds, setRecommendedAds] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({ active: 0, newToday: 0 });
-
-  const categorySlugToLabel = useMemo(() => {
-    const map = new Map();
-    for (const c of CATEGORIES) map.set(c.slug, c.name);
-    return map;
-  }, []);
 
   useEffect(() => {
     const fetchRecommended = async () => {
       try {
         setLoading(true);
-        const response = await getRecommendedAds(10);
+        const response = await getAds({ limit: 10, sort: '-createdAt' });
         const data = response.data;
         
         let adsArray = [];
@@ -92,14 +85,9 @@ const Home = () => {
         } else if (Array.isArray(data)) {
           adsArray = data;
         }
-
-        setRecommendedAds(Array.isArray(adsArray) ? adsArray.slice(0, 10) : []);
         
-        // Basic stats derived from response (fallbacks)
-        setStats({
-          active: data?.pagination?.total || adsArray.length || 0,
-          newToday: Array.isArray(adsArray) ? Math.min(adsArray.length, 10) : 0,
-        });
+        // Slice to exactly 10 ads
+        setRecommendedAds(Array.isArray(adsArray) ? adsArray.slice(0, 10) : []);
       } catch (err) {
         console.error('Failed to fetch recommended ads:', err);
         setRecommendedAds([]);
@@ -112,218 +100,74 @@ const Home = () => {
   }, []);
 
   const handleCategoryClick = (slug) => {
-    const lastSearch = String(sessionStorage.getItem('last_ads_search') || '').trim();
-    if (lastSearch) {
-      navigate(`/ads?category=${slug}&search=${encodeURIComponent(lastSearch)}`);
-      return;
-    }
     navigate(`/ads?category=${slug}`);
   };
 
   return (
-    <div style={{ background: 'var(--bg)', minHeight: '100vh' }}>
-      {/* Hero Section */}
-      <section style={{ padding: '56px 0 28px' }}>
-        <div className="container" style={{ maxWidth: '1400px' }}>
-          <div
-            className="p-card"
-            style={{
-              padding: '42px',
-              borderRadius: '22px',
-              background:
-                'radial-gradient(900px circle at 20% 10%, rgba(73,91,74,.18), transparent 55%), linear-gradient(180deg, rgba(255,255,255,.95), rgba(255,255,255,.78))',
-              boxShadow: 'var(--shadow-2)',
-            }}
-          >
-            <div className="hero-grid" style={{ display: 'grid', gridTemplateColumns: '1.25fr .75fr', gap: 28 }}>
-              <div>
-                <div className="t-h1" style={{ color: 'var(--text)', marginBottom: 14 }}>
-                  Find what you need. Sell what you don’t.
-                </div>
-                <div className="t-lead" style={{ marginBottom: 22 }}>
-                  A clean marketplace experience for modern listings — fast search, clear filters, and premium presentation.
-                </div>
-
-                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                  <Link to="/ads" className="btn btn-primary">
-                    Browse Ads
-                  </Link>
-                  <Link to="/create" className="btn btn-secondary">
-                    Post an Ad
-                  </Link>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gap: 12 }}>
-                <div className="p-card" style={{ padding: 18, borderRadius: 18, background: 'rgba(255,255,255,0.75)' }}>
-                  <div style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 650, marginBottom: 6 }}>Active ads</div>
-                  <div style={{ fontSize: 28, fontWeight: 850, color: 'var(--green-600)' }}>{stats.active.toLocaleString()}</div>
-                </div>
-                <div className="p-card" style={{ padding: 18, borderRadius: 18, background: 'rgba(255,255,255,0.75)' }}>
-                  <div style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 650, marginBottom: 6 }}>New today</div>
-                  <div style={{ fontSize: 28, fontWeight: 850, color: 'var(--green-600)' }}>{stats.newToday}</div>
-                </div>
-              </div>
-            </div>
-          </div>
+    <div className="page">
+      <div className="container">
+        {/* Page Header */}
+        <div className="page-header">
+          <h1 className="page-header__title">Find what you need. Sell what you don't.</h1>
+          <p className="page-header__subtitle">
+            A clean marketplace experience for modern listings — fast search, clear filters, and premium presentation.
+          </p>
         </div>
-      </section>
 
-      {/* Category Grid */}
-      <section style={{ padding: '28px 0 10px' }}>
-        <div className="container" style={{ maxWidth: '1400px' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
-            <div>
-              <h2 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.01em' }}>Categories</h2>
-              <div style={{ color: 'var(--muted)', marginTop: 6 }}>Jump directly to a filtered listing.</div>
-            </div>
-          </div>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '24px',
-          }}
-          className="category-grid"
-          >
+        {/* Category Section */}
+        <section className="section">
+          <div className="grid grid-3">
             {CATEGORIES.map((category) => (
               <div
                 key={category.slug}
                 onClick={() => handleCategoryClick(category.slug)}
-                style={{
-                  background: 'var(--card-solid)',
-                  borderRadius: '20px',
-                  padding: '22px',
-                  textAlign: 'center',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  border: '1px solid var(--border)',
-                  boxShadow: 'var(--shadow-1)',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.borderColor = 'rgba(73, 91, 74, 0.40)';
-                  e.currentTarget.style.boxShadow = '0 10px 26px var(--green-glow)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.borderColor = 'var(--border)';
-                  e.currentTarget.style.boxShadow = 'var(--shadow-1)';
-                }}
+                className="category-card card card-hover"
               >
-                <div style={{
-                  color: 'var(--green-600)',
-                  marginBottom: '16px',
-                  display: 'flex',
-                  justifyContent: 'center',
-                }}>
+                <div className="category-card__icon">
                   {category.icon}
                 </div>
-                <h3 style={{
-                  margin: 0,
-                  fontSize: '1.25rem',
-                  fontWeight: '600',
-                  color: 'var(--text)',
-                }}>
+                <h3 className="category-card__title">
                   {category.name}
                 </h3>
-                <div style={{ marginTop: 8, fontSize: 13, color: 'var(--muted)' }}>
-                  Explore {categorySlugToLabel.get(category.slug) || category.name}
-                </div>
+                <p className="category-card__subtitle">
+                  Explore {category.name}
+                </p>
               </div>
             ))}
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Recommended Ads */}
-      <section style={{ padding: '36px 0 70px' }}>
-        <div className="container" style={{ maxWidth: '1400px' }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '32px',
-          }}>
-            <h2 style={{
-              fontSize: '1.75rem',
-              fontWeight: '800',
-              color: 'var(--text)',
-              margin: 0,
-            }}>
-              Recommended
-            </h2>
-            <Link
-              to="/ads"
-              style={{
-                color: 'var(--green-600)',
-                fontSize: '1rem',
-                fontWeight: '600',
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = 'var(--green-700)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = 'var(--green-600)';
-              }}
-            >
+        {/* Recommended Ads Section */}
+        <section className="section">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="t-h2">Recommended</h2>
+            <Link to="/ads" className="nav-link flex items-center gap-2">
               View all
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                 <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </Link>
           </div>
 
           {loading ? (
-            <div className="recommended-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 18 }}>
+            <div className="grid grid-3">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="p-card" style={{ height: 240, borderRadius: 18, background: 'rgba(255,255,255,0.75)' }} />
+                <div key={i} className="card card--pad" style={{ height: 240, background: 'var(--surface-2)' }} />
               ))}
             </div>
           ) : recommendedAds.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-              <p style={{ color: 'var(--muted)' }}>No ads available at the moment.</p>
+            <div className="text-center py-6">
+              <p className="t-muted">No ads available at the moment.</p>
             </div>
           ) : (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: '24px',
-            }}
-            className="recommended-grid"
-            >
+            <div className="grid grid-3">
               {recommendedAds.map(ad => (
                 <AdCard key={ad._id} ad={ad} showFavoriteButton={true} />
               ))}
             </div>
           )}
-        </div>
-      </section>
-
-      <style>{`
-        @media (max-width: 1024px) {
-          .hero-grid {
-            grid-template-columns: 1fr !important;
-          }
-          .category-grid {
-            grid-template-columns: repeat(2, 1fr) !important;
-          }
-          .recommended-grid {
-            grid-template-columns: repeat(2, 1fr) !important;
-          }
-        }
-        @media (max-width: 768px) {
-          .category-grid {
-            grid-template-columns: 1fr !important;
-          }
-          .recommended-grid {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
+        </section>
+      </div>
     </div>
   );
 };

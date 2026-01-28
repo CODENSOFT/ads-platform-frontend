@@ -35,9 +35,17 @@ const Navbar = () => {
     navigate(`/ads?search=${encodeURIComponent(q)}`);
   };
 
-  // Fetch unread count on mount and poll every 30s
+  // Fetch unread count on mount and poll every 30s (throttled)
   useEffect(() => {
+    // HARD GUARD: Do NOT poll if user/token is missing
+    if (!user) {
+      setUnread(0);
+      return;
+    }
+
     let alive = true;
+    let lastFetchTime = 0;
+    const MIN_POLL_INTERVAL_MS = 30000; // 30 seconds minimum
 
     const load = async () => {
       // STOP calling protected endpoints when token missing
@@ -45,6 +53,12 @@ const Navbar = () => {
       if (!token || !user) {
         setUnread(0);
         return;
+      }
+
+      // Throttle: prevent calls faster than 30 seconds
+      const now = Date.now();
+      if (now - lastFetchTime < MIN_POLL_INTERVAL_MS) {
+        return; // Skip if called too soon
       }
 
       try {
@@ -59,6 +73,7 @@ const Navbar = () => {
         const count = Number(data?.count || 0);
         if (Number.isFinite(count)) {
           setUnread(count);
+          lastFetchTime = Date.now();
         }
       } catch (e) {
         // Silent fail - never log 429 or spam console
@@ -73,20 +88,21 @@ const Navbar = () => {
       }
     };
 
-    if (user) {
-      load();
-      const t = setInterval(load, 30000); // 30 seconds
-      return () => { 
-        alive = false; 
-        clearInterval(t); 
-      };
-    } else {
-      setUnread(0);
-    }
+    // Initial load
+    load();
+    
+    // Poll every 30 seconds
+    const t = setInterval(load, MIN_POLL_INTERVAL_MS);
+    
+    return () => { 
+      alive = false; 
+      clearInterval(t); 
+    };
   }, [user]);
 
-  // Refresh when navigating to /chats (messages might have been read)
+  // Refresh when navigating to /chats (messages might have been read) - throttled
   useEffect(() => {
+    // HARD GUARD: Do NOT call API if token/user is missing
     const token = localStorage.getItem('token');
     if (!token || !user) {
       return;
@@ -123,79 +139,71 @@ const Navbar = () => {
   }, [location.pathname, location.hash, user]);
 
   return (
-    <nav className="p-navbar p-glass">
-      <div className="p-container">
-        <div className="p-navbar-inner">
-          <Link to="/" className="nav-link" style={{ fontSize: 20 }}>
-            AdsPlatform
+    <nav className="navbar">
+      <div className="container">
+        <div className="navbar-inner">
+          {/* Left: Brand */}
+          <Link to="/" className="brand">
+            <span className="brand-badge">A</span>
+            <span>AdsPlatform</span>
           </Link>
 
-        {/* Search Input */}
-        <form
-          onSubmit={handleSearchSubmit}
-          style={{ flex: 1, maxWidth: 520 }}
-        >
-          <div className="u-row" style={{ position: 'relative', gap: 0 }}>
-            <input className="p-input" style={{ paddingRight: 44, borderRadius: 999 }} type="text" value={navSearch} onChange={(e) => setNavSearch(e.target.value)} placeholder="Search ads…" />
-            <button
-              type="submit"
-              className="nav-icon-btn"
-              style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', width: 34, height: 34 }}
-              aria-label="Search"
-            >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+          {/* Center: Search */}
+          <form onSubmit={handleSearchSubmit} className="search">
+            <div className="search-box">
+              <input
+                className="search-input"
+                type="text"
+                value={navSearch}
+                onChange={(e) => setNavSearch(e.target.value)}
+                placeholder="Search ads…"
+              />
+              <button
+                type="submit"
+                className="search-btn"
+                aria-label="Search"
               >
-                <circle cx="11" cy="11" r="8" />
-                <path d="m21 21-4.35-4.35" />
-              </svg>
-            </button>
-          </div>
-        </form>
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.35-4.35" />
+                </svg>
+              </button>
+            </div>
+          </form>
 
-        <div className="u-row" style={{ gap: 12 }}>
-          {user && (
-            <Link
-              to="/chats"
-              className="nav-icon-btn"
-              aria-label="Messages"
-            >
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-              {unread > 0 && (
-                <span className="nav-badge-green">
-                  {unread > 99 ? '99+' : String(unread)}
-                </span>
-              )}
+          {/* Right: Navigation Links */}
+          <div className="nav-links">
+            <Link to="/ads" className="nav-link">
+              Ads
             </Link>
-          )}
-          {user ? (
+            
+            {user && (
+              <>
+                <Link to="/favorites" className="nav-link">
+                  Favorites
+                </Link>
+                <Link to="/chats" className="nav-link">
+                  My Conversations
+                  {unread > 0 && (
+                    <span className="nav-badge">
+                      {unread > 99 ? '99+' : String(unread)}
+                    </span>
+                  )}
+                </Link>
+              </>
+            )}
+            
             <ProfileMenu />
-          ) : (
-            <>
-              <ProfileMenu />
-              <Link to="/register" className="btn btn-primary">
-                Sign Up
-              </Link>
-            </>
-          )}
+          </div>
         </div>
       </div>
     </nav>
@@ -203,4 +211,3 @@ const Navbar = () => {
 };
 
 export default Navbar;
-

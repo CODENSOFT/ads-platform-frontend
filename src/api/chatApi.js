@@ -28,19 +28,26 @@ const getToken = () => {
 };
 
 /**
- * Start a new chat with a seller (Direct Messages only - no ad/adId)
+ * Start a new chat with a seller
  * @param {Object} params - Chat start parameters
  * @param {string} params.receiverId - Receiver/Seller ID (Mongo ObjectId)
+ * @param {string} [params.adId] - Ad ID (optional, Mongo ObjectId)
  * @returns {Promise<ChatResponse>}
  * @throws {Error} If validation fails or request fails
  */
-export const startChat = async ({ receiverId }) => {
+export const startChat = async ({ receiverId, adId }) => {
   // Normalize to string
   const receiverIdStr = String(receiverId || '').trim();
+  const adIdStr = adId ? String(adId).trim() : null;
 
   // Validate receiverId before request
   if (!receiverId || receiverIdStr === '' || ['null', 'undefined'].includes(receiverIdStr)) {
     throw new Error('Seller id missing');
+  }
+
+  // Validate adId if provided
+  if (adIdStr && (adIdStr === '' || ['null', 'undefined'].includes(adIdStr))) {
+    throw new Error('Ad id invalid');
   }
 
   // HARD GUARD: never call protected endpoint without token
@@ -60,14 +67,17 @@ export const startChat = async ({ receiverId }) => {
     console.log("[CHAT_API] url", url);
   }
   
-  // Payload exactly: { receiverId: receiverIdStr }
+  // Payload: { receiverId, adId } (adId optional)
   const payload = {
     receiverId: receiverIdStr
   };
+  if (adIdStr) {
+    payload.adId = adIdStr;
+  }
 
   // Dev-only log showing what is being sent
   if (import.meta.env.DEV) {
-    console.log('[CHAT_START_FRONT] payload', { receiverId: receiverIdStr });
+    console.log('[CHAT_START_FRONT] payload', payload);
   }
 
   try {
@@ -160,6 +170,14 @@ export const deleteChat = async (chatId) => {
     // Logging similar to startChat
     console.error('[CHAT_API] Delete status:', error.response?.status);
     console.error('[CHAT_API] Delete response:', error.response?.data);
+    
+    // Special handling for 404: log URL and base API URL for debugging
+    if (error.response?.status === 404) {
+      console.error('[CHAT_API] 404 - Route not found');
+      console.error('[CHAT_API] URL used:', url);
+      console.error('[CHAT_API] Base API URL:', API_URL);
+      console.error('[CHAT_API] Chat ID:', chatIdStr);
+    }
     
     // Log detailed error information
     if (error.response?.data) {

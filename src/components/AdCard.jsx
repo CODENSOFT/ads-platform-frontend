@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth.js';
 import { useFavorites } from '../hooks/useFavorites';
 import { useToast } from '../hooks/useToast';
@@ -17,6 +17,7 @@ const AdCard = ({ ad, showFavoriteButton = true }) => {
   const canFavorite = ad?.status === "active";
   const adId = ad._id || ad.id;
   const saved = showFavoriteButton && adId ? isFavorite(adId) : false;
+  const isActive = ad?.status === "active";
 
   const handleFavoriteClick = async (e) => {
     e.preventDefault();
@@ -90,47 +91,53 @@ const AdCard = ({ ad, showFavoriteButton = true }) => {
   };
 
   return (
-    <div onClick={handleCardClick} className="p-card p-card-hover ad-card" role="button" tabIndex={0}>
-      <div className="ad-card__media">
+    <div 
+      onClick={handleCardClick} 
+      className="card card-hover ad-card" 
+      role="button" 
+      tabIndex={0}
+    >
+      <div className="ad-cover">
         {coverImage ? (
-          <img className="ad-card__img" src={coverImage} alt={ad.title} loading="lazy" />
+          <img src={coverImage} alt={ad.title} loading="lazy" />
         ) : null}
       </div>
 
-      <div className="ad-card__body">
-        <div className="ad-card__meta">
-          <div className="ad-card__title">{ad.title}</div>
-          {ad.status ? <span className="p-badge">{ad.status}</span> : null}
+      <div className="ad-body">
+        <div className="ad-row">
+          <h3 className="ad-title">{ad.title}</h3>
+          {ad.status && (
+            <span className={`badge ${isActive ? 'badge-active' : 'badge-muted'}`}>
+              {ad.status}
+            </span>
+          )}
         </div>
 
-        <div className="ad-card__meta">
-          <div className="ad-card__price">{ad.price} {ad.currency}</div>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate(`/ads/${adId}`); }}
-            style={{ padding: '10px 12px' }}
-          >
-            Details
-          </button>
+        <div className="ad-row">
+          <div className="ad-price">
+            {ad.price} {ad.currency}
+          </div>
         </div>
 
         {showFavoriteButton && (
-          <div className="ad-card__meta">
+          <div className="ad-actions">
             <button
               type="button"
               onClick={handleFavoriteClick}
               disabled={busy || !canFavorite}
-              className={`btn ${saved ? 'btn-danger' : 'btn-secondary'}`}
-              style={{ padding: '10px 12px' }}
+              className={`btn btn-sm ${saved ? 'btn-danger' : 'btn-secondary'}`}
             >
               {busy ? '...' : (saved ? 'Saved' : 'Save')}
             </button>
-            {!canFavorite ? <span className="t-muted" style={{ fontSize: 13 }}>Inactive ad</span> : null}
+            {!canFavorite && (
+              <span className="t-small t-muted">Inactive ad</span>
+            )}
           </div>
         )}
 
-        {error ? <div className="t-muted" style={{ color: 'var(--danger)', fontSize: 13 }}>{error}</div> : null}
+        {error && (
+          <div className="t-small text-danger">{error}</div>
+        )}
       </div>
     </div>
   );

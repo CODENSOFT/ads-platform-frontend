@@ -10,6 +10,9 @@ const baseURL = envURL.endsWith('/api') ? envURL : `${envURL.replace(/\/+$/, '')
 // key = method + url + JSON.stringify(data)
 const inFlightRequests = new Map();
 
+// Flag to prevent multiple 401 redirects (avoid loops)
+let redirectingToLogin = false;
+
 /**
  * Generate request key for deduping
  * @param {string} method - HTTP method
@@ -31,6 +34,7 @@ const api = axios.create({
 
 // Request interceptor to add auth token and set loading
 api.interceptors.request.use((config) => {
+  // Only add Authorization header if token exists
   const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -69,10 +73,28 @@ api.interceptors.response.use(
       inFlightRequests.delete(requestKey);
     }
     
-    // On 401: clear token and user (silent, no console spam)
+    // On 401: clear token and redirect to login once (avoid loops)
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      
+      // Redirect to login only once to avoid loops
+      if (!redirectingToLogin) {
+        redirectingToLogin = true;
+        // Use setTimeout to avoid redirect during render
+        setTimeout(() => {
+          // Check if we're not already on login page
+          const currentPath = window.location.pathname;
+          const currentHash = window.location.hash;
+          if (!currentPath.includes('/login') && !currentHash.includes('#/login')) {
+            window.location.hash = '#/login';
+          }
+          // Reset flag after redirect
+          setTimeout(() => {
+            redirectingToLogin = false;
+          }, 1000);
+        }, 100);
+      }
       // Don't log 401 errors
     }
     

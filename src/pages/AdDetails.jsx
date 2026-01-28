@@ -64,6 +64,37 @@ const AdDetails = () => {
     }
   };
 
+  // Derive adId strictly from ad._id || ad.id
+  const getAdId = () => {
+    if (!ad) return null;
+    const adId = ad._id || ad.id;
+    if (!adId) return null;
+    const adIdStr = String(adId).trim();
+    if (!adIdStr || adIdStr === 'null' || adIdStr === 'undefined') return null;
+    return adIdStr;
+  };
+
+  // Derive receiverId from multiple possible fields
+  const getReceiverId = () => {
+    if (!ad) return null;
+    
+    // Try all possible seller/owner fields
+    const receiverId = 
+      ad.user?._id ||
+      ad.owner?._id ||
+      ad.seller?._id ||
+      ad.createdBy?._id ||
+      ad.userId ||
+      ad.ownerId ||
+      ad.sellerId ||
+      ad.createdById;
+    
+    if (!receiverId) return null;
+    const receiverIdStr = String(receiverId).trim();
+    if (!receiverIdStr || receiverIdStr === 'null' || receiverIdStr === 'undefined') return null;
+    return receiverIdStr;
+  };
+
   const handleContactSeller = async () => {
     // If user not logged in -> navigate to login and stop
     if (!user) {
@@ -71,41 +102,38 @@ const AdDetails = () => {
       return;
     }
 
-    // receiverId must be taken ONLY from a real owner id (only _id fields)
-    const receiverId =
-      ad?.user?._id ||
-      ad?.owner?._id ||
-      ad?.createdBy?._id ||
-      ad?.seller?._id;
-
-    // Normalize to string
-    const receiverIdStr = receiverId ? String(receiverId).trim() : '';
-
-    // If receiverId missing OR equals "null"/"undefined" => show toast and return
-    if (!receiverIdStr || receiverIdStr === 'null' || receiverIdStr === 'undefined') {
-      showError('Seller id missing');
+    // CRITICAL: Validate adId before proceeding
+    const adId = getAdId();
+    if (!adId) {
+      showError('Ad ID is missing or invalid');
       return;
     }
 
-    // Prevent self-messaging
-    const currentUserId = String(user._id || user.id).trim();
-    if (receiverIdStr === currentUserId) {
+    // CRITICAL: Validate receiverId before proceeding
+    const receiverId = getReceiverId();
+    if (!receiverId) {
+      showError('Seller ID is missing or invalid');
+      return;
+    }
+
+    // CRITICAL: Prevent self-messaging
+    const currentUserId = String(user._id || user.id || '').trim();
+    if (receiverId === currentUserId) {
       showError("You can't message yourself");
       return;
     }
 
     // Dev-only log showing what is being sent
     if (import.meta.env.DEV) {
-      console.log('[CHAT_START_FRONT] sending', { receiverId: receiverIdStr });
+      console.log('[CHAT_START_FRONT] sending', { receiverId, adId });
     }
 
     setContacting(true);
     try {
-      // Call startChat with ONLY receiverId (Direct Messages only - no adId)
-      const response = await startChat({ receiverId: receiverIdStr });
+      // Call startChat with both receiverId and adId (strings trimmed)
+      const response = await startChat({ receiverId, adId });
       
       // Extract chatId robustly from response
-      // Backend returns { success, message, chat: { _id } }
       const chatId = response?.chat?._id || response?.data?.chat?._id || response?.data?._id;
       if (chatId) {
         navigate(`/chats/${chatId}`);
@@ -122,12 +150,13 @@ const AdDetails = () => {
   };
 
   const handleShare = async () => {
-    if (!ad || !id) {
+    const adId = getAdId();
+    if (!adId) {
       showError('Unable to share ad. Missing information.');
       return;
     }
 
-    const shareUrl = buildAdShareUrl(id);
+    const shareUrl = buildAdShareUrl(adId);
     if (!shareUrl) {
       showError('Unable to generate share URL.');
       return;
@@ -161,9 +190,11 @@ const AdDetails = () => {
 
   if (loading) {
     return (
-      <div className="page-container">
-        <div className="container" style={{ textAlign: 'center', padding: '60px 20px' }}>
-          <div style={{ fontSize: '18px', color: '#666' }}>Loading ad details...</div>
+      <div className="page">
+        <div className="container">
+          <div className="card card--pad text-center py-6">
+            <div className="t-body t-muted">Loading ad details...</div>
+          </div>
         </div>
       </div>
     );
@@ -171,17 +202,11 @@ const AdDetails = () => {
 
   if (error) {
     return (
-      <div className="page-container">
-        <div className="container" style={{ maxWidth: '800px' }}>
-          <div className="card" style={{
-            backgroundColor: '#fff5f5',
-            border: '1px solid #fed7d7',
-            textAlign: 'center',
-            padding: '40px 20px',
-          }}>
-            <div style={{ fontSize: '48px', marginBottom: '16px' }}>⚠️</div>
-            <h2 style={{ color: '#c53030', marginBottom: '8px' }}>Error</h2>
-            <p style={{ color: '#666', fontSize: '16px' }}>{error}</p>
+      <div className="page">
+        <div className="container">
+          <div className="card card--pad text-center py-6">
+            <h2 className="t-h2 text-danger mb-2">Error</h2>
+            <p className="t-body t-muted">{error}</p>
           </div>
         </div>
       </div>
@@ -190,12 +215,11 @@ const AdDetails = () => {
 
   if (!ad) {
     return (
-      <div className="page-container">
-        <div className="container" style={{ maxWidth: '800px' }}>
-          <div className="card" style={{ textAlign: 'center', padding: '60px 20px' }}>
-            <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔍</div>
-            <h2 style={{ color: '#1a1a1a', marginBottom: '8px' }}>Ad not found</h2>
-            <p style={{ color: '#666' }}>The ad you're looking for doesn't exist or has been removed.</p>
+      <div className="page">
+        <div className="container">
+          <div className="card card--pad text-center py-6">
+            <h2 className="t-h2 mb-2">Ad not found</h2>
+            <p className="t-body t-muted">The ad you're looking for doesn't exist or has been removed.</p>
           </div>
         </div>
       </div>
@@ -205,211 +229,105 @@ const AdDetails = () => {
   const images = ad.images && Array.isArray(ad.images) ? ad.images : [];
   const mainImage = images[mainImageIndex] || null;
   const hasMultipleImages = images.length > 1;
+  const receiverId = getReceiverId();
+  const currentUserId = user ? String(user._id || user.id || '').trim() : '';
+  const isSelf = receiverId === currentUserId;
+  const canContact = user && receiverId && !isSelf;
+  const isActive = ad?.status === "active";
 
   return (
-    <div className="page-container">
-      <div className="container" style={{ maxWidth: '1000px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px', marginBottom: '32px' }}>
+    <div className="page">
+      <div className="container">
+        <div className="ad-details-layout">
           {/* Left Column - Images */}
           <div>
             {images.length > 0 ? (
-              <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-                {mainImage && (
-                  <div style={{ 
-                    width: '100%', 
-                    aspectRatio: '1',
-                    backgroundColor: '#f8f9fa',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginBottom: hasMultipleImages ? '16px' : 0,
-                  }}>
-                    <img
-                      src={mainImage}
-                      alt={ad.title}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'contain',
-                      }}
-                    />
-                  </div>
-                )}
-                {hasMultipleImages && (
-                  <div style={{ 
-                    display: 'flex', 
-                    gap: '8px', 
-                    flexWrap: 'wrap',
-                    padding: '16px',
-                  }}>
-                    {images.map((image, index) => (
-                      <img
-                        key={index}
-                        src={image}
-                        alt={`${ad.title} - Image ${index + 1}`}
-                        onClick={() => setMainImageIndex(index)}
-                        style={{
-                          width: '80px',
-                          height: '80px',
-                          objectFit: 'cover',
-                          borderRadius: '8px',
-                          border: mainImageIndex === index ? '3px solid #007bff' : '2px solid #e0e0e0',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s',
-                          opacity: mainImageIndex === index ? 1 : 0.7,
-                        }}
-                        onMouseEnter={(e) => {
-                          if (mainImageIndex !== index) e.currentTarget.style.opacity = '1';
-                        }}
-                        onMouseLeave={(e) => {
-                          if (mainImageIndex !== index) e.currentTarget.style.opacity = '0.7';
-                        }}
-                      />
-                    ))}
-                  </div>
-                )}
+              <div className="card">
+                <div className="ad-gallery">
+                  {mainImage && (
+                    <div className="ad-gallery__main">
+                      <img src={mainImage} alt={ad.title} />
+                    </div>
+                  )}
+                  {hasMultipleImages && (
+                    <div className="ad-gallery__thumbnails">
+                      {images.map((image, index) => (
+                        <div
+                          key={index}
+                          className={`ad-gallery__thumb ${mainImageIndex === index ? 'ad-gallery__thumb--active' : ''}`}
+                          onClick={() => setMainImageIndex(index)}
+                        >
+                          <img src={image} alt={`${ad.title} - Image ${index + 1}`} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             ) : (
-              <div className="card" style={{
-                aspectRatio: '1',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: '#f8f9fa',
-                color: '#999',
-              }}>
-                No image available
+              <div className="card ad-gallery__main">
+                <div className="t-body t-muted">No image available</div>
               </div>
             )}
           </div>
 
           {/* Right Column - Details */}
           <div>
-            <div style={{ marginBottom: '24px' }}>
-              <h1 style={{ 
-                fontSize: '2rem', 
-                fontWeight: '700', 
-                color: '#1a1a1a',
-                marginBottom: '16px',
-                lineHeight: '1.2',
-              }}>
-                {ad.title}
-              </h1>
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '16px',
-                marginBottom: '24px',
-                flexWrap: 'wrap',
-              }}>
-                <div>
-                  <div style={{ 
-                    fontSize: '2rem', 
-                    fontWeight: '700',
-                    color: '#007bff',
-                  }}>
-                    {ad.price} {ad.currency}
-                  </div>
+            <div className="card card--pad mb-6">
+              <h1 className="t-h1 mb-4">{ad.title}</h1>
+              
+              <div className="flex items-center gap-4 mb-6 flex-wrap">
+                <div className="ad-price">
+                  {ad.price} {ad.currency}
                 </div>
                 {ad.status && (
-                  <div style={{
-                    display: 'inline-block',
-                    padding: '6px 14px',
-                    backgroundColor: ad.status === 'active' ? '#d4edda' : ad.status === 'sold' ? '#f8d7da' : '#e2e3e5',
-                    color: ad.status === 'active' ? '#155724' : ad.status === 'sold' ? '#721c24' : '#383d41',
-                    borderRadius: '20px',
-                    fontSize: '13px',
-                    fontWeight: '600',
-                    textTransform: 'uppercase',
-                  }}>
+                  <span className={`badge ${isActive ? 'badge-active' : 'badge-muted'}`}>
                     {ad.status}
-                  </div>
+                  </span>
                 )}
               </div>
+
             </div>
 
             {/* Seller Information Card */}
             {(ad.owner || ad.user) && (
-              <div className="card" style={{ marginBottom: '24px' }}>
-                <h3 style={{ 
-                  marginBottom: '16px', 
-                  fontSize: '18px',
-                  fontWeight: '600',
-                  color: '#1a1a1a',
-                }}>
-                  Seller Information
-                </h3>
-                {(ad.owner?.name || ad.user?.name) && (
-                  <div style={{ marginBottom: '12px', fontSize: '15px' }}>
-                    <span style={{ color: '#666', fontWeight: '500' }}>Name: </span>
-                    <span style={{ color: '#1a1a1a', fontWeight: '500' }}>
-                      {ad.owner?.name || ad.user?.name}
-                    </span>
+              <div className="card card--pad mb-6">
+                <h3 className="t-h3 mb-4">Seller Information</h3>
+                  {(ad.owner?.name || ad.user?.name) && (
+                    <div className="t-body mb-3">
+                      <span className="t-muted">Name: </span>
+                      <span className="t-bold">{ad.owner?.name || ad.user?.name}</span>
+                    </div>
+                  )}
+                  {(ad.owner?.email || ad.user?.email) && (
+                    <div className="t-body mb-6">
+                      <span className="t-muted">Email: </span>
+                      <span>{ad.owner?.email || ad.user?.email}</span>
+                    </div>
+                  )}
+                  <div className="flex gap-3 flex-col">
+                    <button
+                      onClick={handleContactSeller}
+                      disabled={contacting || !canContact}
+                      className="btn btn-primary"
+                    >
+                      {contacting ? 'Starting conversation...' : 'Contact Seller'}
+                    </button>
+                    <button
+                      onClick={handleShare}
+                      className="btn btn-secondary"
+                    >
+                      Share
+                    </button>
                   </div>
-                )}
-                {(ad.owner?.email || ad.user?.email) && (
-                  <div style={{ marginBottom: '20px', fontSize: '15px' }}>
-                    <span style={{ color: '#666', fontWeight: '500' }}>Email: </span>
-                    <span style={{ color: '#1a1a1a' }}>
-                      {ad.owner?.email || ad.user?.email}
-                    </span>
-                  </div>
-                )}
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <button
-                    onClick={handleContactSeller}
-                    disabled={(() => {
-                      // Disable if user not logged in, seller id missing, or self-messaging
-                      if (!user) return true;
-                      
-                      // receiverId must be taken ONLY from a real owner id (only _id fields)
-                      const receiverId =
-                        ad?.user?._id ||
-                        ad?.owner?._id ||
-                        ad?.createdBy?._id ||
-                        ad?.seller?._id;
-                      const receiverIdStr = receiverId ? String(receiverId).trim() : '';
-                      const currentUserId = user ? String(user._id || user.id).trim() : '';
-                      
-                      const isMissing = !receiverIdStr || receiverIdStr === 'null' || receiverIdStr === 'undefined';
-                      const isSelf = receiverIdStr === currentUserId;
-                      
-                      return contacting || isMissing || isSelf;
-                    })()}
-                    className="btn-primary"
-                    style={{
-                      flex: 1,
-                      padding: '12px',
-                      fontSize: '16px',
-                      fontWeight: '600',
-                    }}
-                  >
-                    {contacting ? 'Starting conversation...' : '💬 Contact Seller'}
-                  </button>
-                  <button
-                    onClick={handleShare}
-                    className="btn-secondary"
-                    style={{
-                      padding: '12px 20px',
-                      fontSize: '16px',
-                      fontWeight: '600',
-                    }}
-                    title="Share this ad"
-                  >
-                    📤 Share
-                  </button>
-                </div>
               </div>
             )}
 
             {/* Posted Date */}
             {ad.createdAt && (
-              <div className="card" style={{
-                backgroundColor: '#f8f9fa',
-                padding: '16px',
-              }}>
-                <div style={{ fontSize: '14px', color: '#666' }}>
-                  <strong>Posted:</strong> {formatDate(ad.createdAt)}
+              <div className="card card--pad">
+                <div className="t-small t-muted">
+                  <span className="t-bold">Posted:</span> {formatDate(ad.createdAt)}
                 </div>
               </div>
             )}
@@ -418,22 +336,9 @@ const AdDetails = () => {
 
         {/* Description */}
         {ad.description && (
-          <div className="card">
-            <h2 style={{ 
-              marginBottom: '16px', 
-              fontSize: '1.5rem',
-              fontWeight: '600',
-              color: '#1a1a1a',
-            }}>
-              Description
-            </h2>
-            <p style={{ 
-              whiteSpace: 'pre-wrap', 
-              lineHeight: '1.8',
-              fontSize: '16px',
-              color: '#333',
-              margin: 0,
-            }}>
+          <div className="card card--pad">
+            <h2 className="t-h2 mb-4">Description</h2>
+            <p className="t-body" style={{ whiteSpace: 'pre-wrap', lineHeight: '1.8' }}>
               {ad.description}
             </p>
           </div>

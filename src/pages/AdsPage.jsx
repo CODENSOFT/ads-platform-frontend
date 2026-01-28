@@ -9,7 +9,7 @@ const CATEGORIES = [
   { name: 'Electronice & Tehnică', slug: 'electronice' },
   { name: 'Casă & Grădină', slug: 'casa-gradina' },
   { name: 'Modă & Frumusețe', slug: 'moda-frumusete' },
-  { name: 'Locuri de muncă', slug: 'joburi' },
+  { name: 'Locuri de muncă', slug: 'locuri-de-munca' },
 ];
 
 const SORT_OPTIONS = [
@@ -41,6 +41,43 @@ const AdsPage = () => {
   const maxPrice = searchParams.get('maxPrice') || '';
 
   const normalizedSearch = useMemo(() => String(search || '').trim().toLowerCase(), [search]);
+  const normalizedCategory = useMemo(() => String(category || '').trim().toLowerCase(), [category]);
+
+  // Client-side category filter helper
+  const matchesCategory = useCallback((ad, categorySlug) => {
+    if (!categorySlug) return true;
+    
+    const slug = categorySlug.toLowerCase();
+    
+    // Try multiple possible category field structures
+    const adCategory = ad?.category;
+    const adCategorySlug = ad?.categorySlug || ad?.category?.slug;
+    const adCategoryId = ad?.categoryId;
+    
+    // Check direct slug match
+    if (adCategorySlug && String(adCategorySlug).toLowerCase() === slug) {
+      return true;
+    }
+    
+    // Check if category object has slug
+    if (adCategory && typeof adCategory === 'object' && adCategory.slug) {
+      if (String(adCategory.slug).toLowerCase() === slug) {
+        return true;
+      }
+    }
+    
+    // Check if category is a string that matches
+    if (adCategory && typeof adCategory === 'string' && String(adCategory).toLowerCase() === slug) {
+      return true;
+    }
+    
+    // Check categoryId (last resort)
+    if (adCategoryId && String(adCategoryId).toLowerCase() === slug) {
+      return true;
+    }
+    
+    return false;
+  }, []);
 
   const fetchAds = useCallback(async () => {
     try {
@@ -51,7 +88,9 @@ const AdsPage = () => {
         sort,
       };
       
+      // Try server-side filtering first
       if (category) params.category = category;
+      if (category) params.categorySlug = category; // Also try categorySlug param
       if (search) params.search = search;
       if (minPrice) params.minPrice = minPrice;
       if (maxPrice) params.maxPrice = maxPrice;
@@ -69,7 +108,12 @@ const AdsPage = () => {
       }
 
       let finalAds = Array.isArray(adsArray) ? adsArray : [];
-      // Fallback: ensure title contains search term (case-insensitive) even if backend doesn't filter
+      
+      // Client-side fallback filtering
+      if (normalizedCategory) {
+        finalAds = finalAds.filter((ad) => matchesCategory(ad, normalizedCategory));
+      }
+      
       if (normalizedSearch) {
         finalAds = finalAds.filter((ad) => {
           const title = String(ad?.title || ad?.name || '').toLowerCase();
@@ -83,7 +127,7 @@ const AdsPage = () => {
       setPagination({
         page: paginationData.page || page,
         pages: paginationData.pages || 1,
-        total: paginationData.total || 0,
+        total: paginationData.total || finalAds.length,
         hasNext: paginationData.hasNext || false,
         hasPrev: paginationData.hasPrev || false,
       });
@@ -93,7 +137,7 @@ const AdsPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [category, search, sort, page, limit, minPrice, maxPrice, normalizedSearch]);
+  }, [category, search, sort, page, limit, minPrice, maxPrice, normalizedSearch, normalizedCategory, matchesCategory]);
 
   useEffect(() => {
     fetchAds();
@@ -132,376 +176,158 @@ const AdsPage = () => {
     setSearchParams(newParams);
   };
 
-  const FilterSidebar = () => (
-    <div style={{
-      background: 'var(--card)',
-      borderRadius: '20px',
-      padding: '24px',
-      boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
-      height: 'fit-content',
-      position: 'sticky',
-      top: '24px',
-    }}>
-      <h3 style={{
-        margin: '0 0 24px 0',
-        fontSize: '1.25rem',
-        fontWeight: '700',
-        color: 'var(--text)',
-      }}>
-        Filters
-      </h3>
-
-      <div style={{ marginBottom: '24px' }}>
-        <label style={{
-          display: 'block',
-          marginBottom: '8px',
-          fontSize: '14px',
-          fontWeight: '600',
-          color: 'var(--text)',
-        }}>
-          Category
-        </label>
-        <select
-          value={category}
-          onChange={(e) => handleFilterChange('category', e.target.value)}
-          style={{
-            width: '100%',
-            padding: '12px',
-            borderRadius: '12px',
-            border: '2px solid var(--border)',
-            fontSize: '14px',
-            background: 'var(--card)',
-            color: 'var(--text)',
-            cursor: 'pointer',
-          }}
-        >
-          <option value="">All Categories</option>
-          {CATEGORIES.map(cat => (
-            <option key={cat.slug} value={cat.slug}>{cat.name}</option>
-          ))}
-        </select>
-      </div>
-
-      <div style={{ marginBottom: '24px' }}>
-        <label style={{
-          display: 'block',
-          marginBottom: '8px',
-          fontSize: '14px',
-          fontWeight: '600',
-          color: 'var(--text)',
-        }}>
-          Price Range
-        </label>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <input
-            type="number"
-            placeholder="Min"
-            value={minPrice}
-            onChange={(e) => handleFilterChange('minPrice', e.target.value)}
-            style={{
-              flex: 1,
-              padding: '12px',
-              borderRadius: '12px',
-              border: '2px solid var(--border)',
-              fontSize: '14px',
-            }}
-          />
-          <input
-            type="number"
-            placeholder="Max"
-            value={maxPrice}
-            onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
-            style={{
-              flex: 1,
-              padding: '12px',
-              borderRadius: '12px',
-              border: '2px solid var(--border)',
-              fontSize: '14px',
-            }}
-          />
-        </div>
-      </div>
-
-      <div>
-        <label style={{
-          display: 'block',
-          marginBottom: '8px',
-          fontSize: '14px',
-          fontWeight: '600',
-          color: 'var(--text)',
-        }}>
-          Sort By
-        </label>
-        <select
-          value={sort}
-          onChange={(e) => handleFilterChange('sort', e.target.value)}
-          style={{
-            width: '100%',
-            padding: '12px',
-            borderRadius: '12px',
-            border: '2px solid var(--border)',
-            fontSize: '14px',
-            background: 'var(--card)',
-            color: 'var(--text)',
-            cursor: 'pointer',
-          }}
-        >
-          {SORT_OPTIONS.map(opt => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-      </div>
-    </div>
-  );
+  const selectedCategoryName = category ? CATEGORIES.find(c => c.slug === category)?.name : null;
 
   return (
-    <div style={{
-      background: 'var(--bg)',
-      minHeight: '100vh',
-      padding: '32px 0',
-    }}>
-      <div className="container" style={{ maxWidth: '1400px' }}>
-        {/* Filter pills */}
-        {(category || search) && (
-          <div style={{ marginBottom: 18, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-            {category && (
-              <span className="p-badge" style={{ gap: 8 }}>
-                Category: {CATEGORIES.find(c => c.slug === category)?.name || category}
-                <button
-                  type="button"
-                  onClick={clearCategory}
-                  style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: 'inherit', fontWeight: 900 }}
-                  aria-label="Clear category"
-                >
-                  ×
-                </button>
-              </span>
-            )}
-            {search && (
-              <span className="p-badge" style={{ gap: 8 }}>
-                Search: “{search}”
-                <button
-                  type="button"
-                  onClick={clearSearch}
-                  style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: 'inherit', fontWeight: 900 }}
-                  aria-label="Clear search"
-                >
-                  ×
-                </button>
-              </span>
-            )}
-            <button className="btn btn-secondary" onClick={clearAll} style={{ padding: '8px 12px' }}>
-              Clear all
-            </button>
-          </div>
-        )}
-
-        {/* Mobile Filter Toggle */}
-        <div style={{
-          display: 'none',
-          marginBottom: '24px',
-        }}
-        className="mobile-filter-toggle"
-        >
-          <button
-            onClick={() => setFiltersOpen(!filtersOpen)}
-            className="btn-primary"
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-            }}
-          >
-            {filtersOpen ? '✕' : '☰'} Filters
-          </button>
-        </div>
-
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '280px 1fr',
-          gap: '32px',
-          alignItems: 'start',
-        }}
-        className="ads-layout"
-        >
-          {/* Desktop Sidebar */}
-          <div className="desktop-sidebar">
-            <FilterSidebar />
+    <div className="page">
+      <div className="container">
+        {/* Premium Header with Filters */}
+        <div className="page-header">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="page-header__title">
+                {selectedCategoryName || 'All Ads'}
+              </h1>
+              <p className="page-header__subtitle">
+                {pagination.total} {pagination.total === 1 ? 'result' : 'results'}
+              </p>
+            </div>
           </div>
 
-          {/* Mobile Filter Sheet */}
-          {filtersOpen && (
-            <div
-              className="mobile-filter-sheet"
-              style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: 'rgba(0,0,0,0.5)',
-                zIndex: 1000,
-                display: 'none',
-              }}
-              onClick={() => setFiltersOpen(false)}
-            >
-              <div
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '320px',
-                  height: '100%',
-                  background: 'var(--card)',
-                  padding: '24px',
-                  overflowY: 'auto',
-                  boxShadow: '4px 0 24px rgba(0,0,0,0.15)',
-                }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: '24px',
-                }}>
-                  <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '700' }}>Filters</h3>
+          {/* Filter Pills */}
+          {(category || search) && (
+            <div className="flex items-center gap-2 flex-wrap mb-6">
+              {category && (
+                <span className="pill">
+                  Category: {selectedCategoryName || category}
                   <button
-                    onClick={() => setFiltersOpen(false)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      fontSize: '24px',
-                      cursor: 'pointer',
-                      color: 'var(--muted)',
-                    }}
+                    type="button"
+                    onClick={clearCategory}
+                    className="pill-x"
+                    aria-label="Clear category"
                   >
-                    ✕
+                    ×
                   </button>
-                </div>
-                <FilterSidebar />
-              </div>
+                </span>
+              )}
+              {search && (
+                <span className="pill">
+                  Search: "{search}"
+                  <button
+                    type="button"
+                    onClick={clearSearch}
+                    className="pill-x"
+                    aria-label="Clear search"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+              <button className="btn btn-secondary btn-sm" onClick={clearAll}>
+                Clear all
+              </button>
             </div>
           )}
+        </div>
 
-          {/* Main Content */}
-          <div>
-            {/* Results Header */}
-            <div style={{
-              background: 'var(--card)',
-              borderRadius: '20px',
-              padding: '24px',
-              marginBottom: '32px',
-              boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: '16px',
-            }}>
+        {/* Main Content */}
+        <div className="ads-layout">
+          {/* Filters Sidebar */}
+          <div className="ads-sidebar card card--pad">
+            <h3 className="t-h3 mb-6">Filters</h3>
+
+            <div className="flex flex-col gap-6">
               <div>
-                <h2 style={{
-                  margin: '0 0 8px 0',
-                  fontSize: '1.5rem',
-                  fontWeight: '700',
-                  color: 'var(--text)',
-                }}>
-                  {category ? CATEGORIES.find(c => c.slug === category)?.name || 'Ads' : 'All Ads'}
-                </h2>
-                <p style={{
-                  margin: 0,
-                  color: 'var(--muted)',
-                  fontSize: '14px',
-                }}>
-                  {pagination.total} {pagination.total === 1 ? 'result' : 'results'}
-                </p>
+                <label className="t-small t-bold mb-2 block">Category</label>
+                <select
+                  value={category}
+                  onChange={(e) => handleFilterChange('category', e.target.value)}
+                  className="input"
+                >
+                  <option value="">All Categories</option>
+                  {CATEGORIES.map(cat => (
+                    <option key={cat.slug} value={cat.slug}>{cat.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="t-small t-bold mb-2 block">Price Range</label>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    placeholder="Min"
+                    value={minPrice}
+                    onChange={(e) => handleFilterChange('minPrice', e.target.value)}
+                    className="input"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Max"
+                    value={maxPrice}
+                    onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
+                    className="input"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="t-small t-bold mb-2 block">Sort By</label>
+                <select
+                  value={sort}
+                  onChange={(e) => handleFilterChange('sort', e.target.value)}
+                  className="input"
+                >
+                  {SORT_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
               </div>
             </div>
+          </div>
 
-            {/* Loading State */}
-            {loading && (
-              <div style={{
-                textAlign: 'center',
-                padding: '80px 20px',
-                background: 'var(--card)',
-                borderRadius: '20px',
-              }}>
-                <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
-                <p style={{ color: 'var(--muted)' }}>Loading ads...</p>
+          {/* Ads Grid */}
+          <div>
+            {loading ? (
+              <div className="grid grid-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="card card--pad" style={{ height: 320, background: 'var(--surface-2)' }} />
+                ))}
               </div>
-            )}
-
-            {/* Ads Grid */}
-            {!loading && (
+            ) : ads.length === 0 ? (
+              <div className="card card--pad text-center py-6">
+                <div className="t-h3 mb-2">No ads found</div>
+                <p className="t-muted">Try adjusting your filters</p>
+              </div>
+            ) : (
               <>
-                {ads.length === 0 ? (
-                  <div style={{
-                    textAlign: 'center',
-                    padding: '80px 20px',
-                    background: 'var(--card)',
-                    borderRadius: '20px',
-                  }}>
-                    <div style={{ fontSize: '64px', marginBottom: '16px', opacity: 0.3 }}>🔍</div>
-                    <h3 style={{ margin: '0 0 8px 0', color: 'var(--text)' }}>No ads found</h3>
-                    <p style={{ color: 'var(--muted)' }}>Try adjusting your filters</p>
-                  </div>
-                ) : (
-                  <>
-                    <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                      gap: '24px',
-                      marginBottom: '32px',
-                    }}>
-                      {ads.map(ad => (
-                        <AdCard key={ad._id} ad={ad} showFavoriteButton={true} />
-                      ))}
-                    </div>
+                <div className="grid grid-3">
+                  {ads.map(ad => (
+                    <AdCard key={ad._id} ad={ad} showFavoriteButton={true} />
+                  ))}
+                </div>
 
-                    {/* Pagination */}
-                    {pagination.pages > 1 && (
-                      <div style={{
-                        display: 'flex',
-                        gap: '12px',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        flexWrap: 'wrap',
-                      }}>
-                        <button
-                          onClick={() => handlePageChange(page - 1)}
-                          disabled={!pagination.hasPrev || loading}
-                          className="btn-ghost"
-                          style={{
-                            opacity: !pagination.hasPrev ? 0.5 : 1,
-                          }}
-                        >
-                          ← Previous
-                        </button>
-                        <span style={{
-                          padding: '12px 20px',
-                          background: 'var(--card)',
-                          borderRadius: '12px',
-                          fontSize: '14px',
-                          fontWeight: '600',
-                          color: 'var(--text)',
-                        }}>
-                          Page {page} of {pagination.pages}
-                        </span>
-                        <button
-                          onClick={() => handlePageChange(page + 1)}
-                          disabled={!pagination.hasNext || loading}
-                          className="btn-ghost"
-                          style={{
-                            opacity: !pagination.hasNext ? 0.5 : 1,
-                          }}
-                        >
-                          Next →
-                        </button>
-                      </div>
-                    )}
-                  </>
+                {/* Pagination */}
+                {pagination.pages > 1 && (
+                  <div className="flex items-center justify-center gap-4 mt-8">
+                    <button
+                      onClick={() => handlePageChange(page - 1)}
+                      disabled={!pagination.hasPrev || loading}
+                      className="btn btn-secondary"
+                    >
+                      Previous
+                    </button>
+                    <span className="t-body t-bold">
+                      Page {page} of {pagination.pages}
+                    </span>
+                    <button
+                      onClick={() => handlePageChange(page + 1)}
+                      disabled={!pagination.hasNext || loading}
+                      className="btn btn-secondary"
+                    >
+                      Next
+                    </button>
+                  </div>
                 )}
               </>
             )}
@@ -510,18 +336,23 @@ const AdsPage = () => {
       </div>
 
       <style>{`
+        .ads-layout {
+          display: grid;
+          grid-template-columns: 280px 1fr;
+          gap: 32px;
+          align-items: start;
+        }
+        .ads-sidebar {
+          position: sticky;
+          top: 24px;
+        }
         @media (max-width: 1024px) {
           .ads-layout {
             grid-template-columns: 1fr;
           }
-          .desktop-sidebar {
-            display: none;
-          }
-          .mobile-filter-toggle {
-            display: block !important;
-          }
-          .mobile-filter-sheet {
-            display: block !important;
+          .ads-sidebar {
+            position: static;
+            margin-bottom: 24px;
           }
         }
       `}</style>
