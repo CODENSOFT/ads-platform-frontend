@@ -174,13 +174,7 @@ const ProfileMenu = () => {
     return (
       <Link
         to="/login"
-        style={{
-          padding: '10px 20px',
-          color: '#007bff',
-          textDecoration: 'none',
-          fontSize: '14px',
-          fontWeight: '500',
-        }}
+        className="nav-link"
       >
         Login
       </Link>
@@ -188,233 +182,159 @@ const ProfileMenu = () => {
   }
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div className="profile-menu">
       <button
         ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
-        style={{
-          width: '40px',
-          height: '40px',
-          borderRadius: '50%',
-          border: '2px solid #ddd',
-          backgroundColor: '#f8f9fa',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 0,
-          transition: 'all 0.2s',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.borderColor = '#007bff';
-          e.currentTarget.style.backgroundColor = '#e7f3ff';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.borderColor = '#ddd';
-          e.currentTarget.style.backgroundColor = '#f8f9fa';
-        }}
+        className={`profile-btn ${isOpen ? 'is-open' : ''}`}
         aria-label="Profile menu"
       >
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-          <circle cx="12" cy="7" r="4" />
-        </svg>
+        <span className="profile-btn__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path
+              d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <circle
+              cx="12"
+              cy="7"
+              r="4"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
       </button>
 
       {isOpen && (
         <div
           ref={menuRef}
-          style={{
-            position: 'absolute',
-            top: 'calc(100% + 8px)',
-            right: 0,
-            minWidth: '220px',
-            backgroundColor: '#fff',
-            border: '1px solid #e0e0e0',
-            borderRadius: '8px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            padding: '8px 0',
-            zIndex: 1000,
-          }}
+          className="profile-dropdown"
         >
           {/* Header */}
-          <div style={{
-            padding: '12px 16px',
-            borderBottom: '1px solid #e0e0e0',
-            marginBottom: '4px',
-          }}>
-            <div style={{
-              fontSize: '12px',
-              color: '#666',
-              marginBottom: '4px',
-            }}>
-              Signed in as
-            </div>
-            <div style={{
-              fontSize: '14px',
-              fontWeight: '600',
-              color: '#1a1a1a',
-            }}>
-              {user.name || user.email}
-            </div>
+          <div className="profile-dropdown__header">
+            <div className="profile-dropdown__label">Signed in as</div>
+            <div className="profile-dropdown__name">{user.name || user.email}</div>
             {user.email && user.name && (
-              <div style={{
-                fontSize: '12px',
-                color: '#999',
-                marginTop: '2px',
-              }}>
-                {user.email}
-              </div>
+              <div className="profile-dropdown__email">{user.email}</div>
             )}
           </div>
 
           {/* Menu Items */}
-          <div style={{ padding: '4px 0' }}>
+          <div className="profile-dropdown__section">
             <button
               onClick={() => handleMenuClick('/create')}
-              style={{
-                width: '100%',
-                padding: '10px 16px',
-                textAlign: 'left',
-                border: 'none',
-                backgroundColor: 'transparent',
-                cursor: 'pointer',
-                fontSize: '14px',
-                color: '#333',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'background-color 0.2s',
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              className="menu-item"
             >
-              ➕ Create Ad
+              <span className="menu-item__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path
+                    d="M12 5v14M5 12h14"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </span>
+              <span className="menu-item__label">Create Ad</span>
             </button>
 
             <button
               onClick={() => handleMenuClick('/my-ads')}
-              style={{
-                width: '100%',
-                padding: '10px 16px',
-                textAlign: 'left',
-                border: 'none',
-                backgroundColor: 'transparent',
-                cursor: 'pointer',
-                fontSize: '14px',
-                color: '#333',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'background-color 0.2s',
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              className="menu-item"
             >
-              📋 My Ads
+              <span className="menu-item__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path
+                    d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M9 5a3 3 0 0 1 6 0v2H9V5Z"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </span>
+              <span className="menu-item__label">My Ads</span>
             </button>
 
             <button
               onClick={() => handleMenuClick('/favorites')}
-              style={{
-                width: '100%',
-                padding: '10px 16px',
-                textAlign: 'left',
-                border: 'none',
-                backgroundColor: 'transparent',
-                cursor: 'pointer',
-                fontSize: '14px',
-                color: '#333',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'background-color 0.2s',
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              className="menu-item"
             >
-              ❤️ Favorites
+              <span className="menu-item__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path
+                    d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </span>
+              <span className="menu-item__label">Favorites</span>
             </button>
 
             <button
               onClick={() => handleMenuClick('/chats')}
-              style={{
-                width: '100%',
-                padding: '10px 16px',
-                textAlign: 'left',
-                border: 'none',
-                backgroundColor: 'transparent',
-                cursor: 'pointer',
-                fontSize: '14px',
-                color: '#333',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                transition: 'background-color 0.2s',
-                position: 'relative',
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              className="menu-item menu-item--with-right"
             >
-              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                💬 My Conversations
-              </span>
-              {showBadge && (
-                <span style={{
-                  backgroundColor: '#1a1a1a',
-                  color: '#fff',
-                  borderRadius: '10px',
-                  padding: '2px 6px',
-                  fontSize: '11px',
-                  fontWeight: '600',
-                  minWidth: '18px',
-                  textAlign: 'center',
-                  lineHeight: '1.4',
-                }}>
-                  {badgeText}
+              <span className="menu-item__left">
+                <span className="menu-item__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path
+                      d="M21 15a4 4 0 0 1-4 4H7l-4 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8Z"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
                 </span>
-              )}
+                <span className="menu-item__label">My Conversations</span>
+              </span>
+              {showBadge && <span className="menu-item__badge">{badgeText}</span>}
             </button>
           </div>
 
           {/* Divider */}
-          <div style={{
-            height: '1px',
-            backgroundColor: '#e0e0e0',
-            margin: '4px 0',
-          }} />
+          <div className="profile-dropdown__divider" />
 
           {/* Logout */}
-          <div style={{ padding: '4px 0' }}>
+          <div className="profile-dropdown__section">
             <button
               onClick={handleLogout}
-              style={{
-                width: '100%',
-                padding: '10px 16px',
-                textAlign: 'left',
-                border: 'none',
-                backgroundColor: 'transparent',
-                cursor: 'pointer',
-                fontSize: '14px',
-                color: '#dc3545',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'background-color 0.2s',
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fff5f5'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              className="menu-item menu-item--danger"
             >
-              🚪 Log out
+              <span className="menu-item__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path
+                    d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M16 17l5-5-5-5"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M21 12H9"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </span>
+              <span className="menu-item__label">Log out</span>
             </button>
           </div>
         </div>

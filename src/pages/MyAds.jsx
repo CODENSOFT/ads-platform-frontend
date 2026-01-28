@@ -1,17 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getMyAds, updateAdStatus, updateAd, deleteAd } from '../api/endpoints';
+import { useNavigate } from 'react-router-dom';
+import { getMyAds, updateAdStatus, deleteAd } from '../api/endpoints';
 import { useToast } from '../hooks/useToast';
 import { parseError } from '../utils/errorParser';
 
 const MyAds = () => {
+  const navigate = useNavigate();
   const { success, error: showError } = useToast();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [ads, setAds] = useState([]);
   const [loadingById, setLoadingById] = useState({});
   const [errorById, setErrorById] = useState({});
-  const [editingById, setEditingById] = useState({});
-  const [editFormDataById, setEditFormDataById] = useState({});
   const [validationErrorsById, setValidationErrorsById] = useState({});
 
   // Helper: Set loading state for a specific ad
@@ -90,41 +90,8 @@ const MyAds = () => {
 
   const handleEditClick = (ad) => {
     const adId = ad._id || ad.id;
-    setEditingById((prev) => ({ ...prev, [adId]: true }));
-    setEditFormDataById((prev) => ({
-      ...prev,
-      [adId]: {
-        title: ad.title || '',
-        description: ad.description || '',
-        price: ad.price || '',
-        currency: ad.currency || 'EUR',
-      },
-    }));
-    setValidationErrorsById((prev) => {
-      const updated = { ...prev };
-      delete updated[adId];
-      return updated;
-    });
-    setAdError(adId, null);
-  };
-
-  const handleCancelEdit = (adId) => {
-    setEditingById((prev) => {
-      const updated = { ...prev };
-      delete updated[adId];
-      return updated;
-    });
-    setEditFormDataById((prev) => {
-      const updated = { ...prev };
-      delete updated[adId];
-      return updated;
-    });
-    setValidationErrorsById((prev) => {
-      const updated = { ...prev };
-      delete updated[adId];
-      return updated;
-    });
-    setAdError(adId, null);
+    if (!adId) return;
+    navigate(`/edit/${adId}`);
   };
 
   const validateEditForm = (adId, formData) => {
@@ -166,74 +133,6 @@ const MyAds = () => {
     return Object.keys(errors).length === 0;
   };
 
-  const handleSaveEdit = async (adId) => {
-    const formData = editFormDataById[adId];
-    if (!formData) return;
-
-    // Clear previous errors
-    setAdError(adId, null);
-
-    // Client-side validation
-    if (!validateEditForm(adId, formData)) {
-      // Validation failed - show first error message
-      const validationErrors = validationErrorsById[adId] || {};
-      const firstError = Object.values(validationErrors)[0];
-      if (firstError) {
-        setAdError(adId, firstError);
-      }
-      return; // Do NOT call API if validation fails
-    }
-
-    // Clear errors before API call
-    setAdError(adId, null);
-    setAdLoading(adId, true);
-
-    try {
-      // Build payload with ONLY allowed fields
-      const payload = {
-        title: formData.title.trim(),
-        description: formData.description.trim(),
-        price: Number(formData.price),
-        currency: formData.currency,
-      };
-
-      await updateAd(adId, payload);
-
-      // Refetch my ads from backend as source of truth
-      await fetchMyAds();
-
-      // Close edit mode
-      handleCancelEdit(adId);
-      setAdError(adId, null);
-      success('Ad updated');
-    } catch (err) {
-      const errorMsg = parseError(err);
-      setAdError(adId, errorMsg);
-      showError(errorMsg);
-    } finally {
-      setAdLoading(adId, false);
-    }
-  };
-
-  const handleFormDataChange = (adId, field, value) => {
-    setEditFormDataById((prev) => ({
-      ...prev,
-      [adId]: {
-        ...prev[adId],
-        [field]: value,
-      },
-    }));
-    // Clear validation error for this field
-    setValidationErrorsById((prev) => {
-      const updated = { ...prev };
-      if (updated[adId]) {
-        updated[adId] = { ...updated[adId] };
-        delete updated[adId][field];
-      }
-      return updated;
-    });
-  };
-
   const handleDelete = async (adId) => {
     // Show confirmation dialog
     if (!window.confirm('Delete this ad?')) {
@@ -252,17 +151,6 @@ const MyAds = () => {
       // Refetch my ads from backend as source of truth
       await fetchMyAds();
       
-      // Clean up any state related to this ad
-      setEditingById((prev) => {
-        const updated = { ...prev };
-        delete updated[adId];
-        return updated;
-      });
-      setEditFormDataById((prev) => {
-        const updated = { ...prev };
-        delete updated[adId];
-        return updated;
-      });
       setValidationErrorsById((prev) => {
         const updated = { ...prev };
         delete updated[adId];
@@ -456,9 +344,9 @@ const MyAds = () => {
                   const adId = ad._id || ad.id;
                   const isUpdating = loadingById[adId] || false;
                   const adError = errorById[adId];
-                  const isEditing = editingById[adId] || false;
-                  const editFormData = editFormDataById[adId] || {};
-                  const validationErrors = validationErrorsById[adId] || {};
+                  const isEditing = false;
+                  const editFormData = {};
+                  const validationErrors = {};
                   const coverImage = ad.images && ad.images[0] ? ad.images[0] : null;
                   const canEdit = ad.status === 'draft' || ad.status === 'active';
 
@@ -655,194 +543,7 @@ const MyAds = () => {
                             )}
                           </div>
                         </>
-                      ) : (
-                        <div style={{ padding: '16px' }}>
-                          <h4 style={{ 
-                            margin: '0 0 20px 0', 
-                            fontSize: '18px',
-                            fontWeight: '600',
-                            color: '#1a1a1a',
-                          }}>
-                            ✏️ Edit Ad
-                          </h4>
-                          <div style={{ marginBottom: '16px' }}>
-                            <label style={{ 
-                              display: 'block', 
-                              marginBottom: '6px', 
-                              fontSize: '14px',
-                              fontWeight: '500',
-                              color: '#333',
-                            }}>
-                              Title *
-                            </label>
-                            <input
-                              type="text"
-                              value={editFormData.title || ''}
-                              onChange={(e) => handleFormDataChange(adId, 'title', e.target.value)}
-                              disabled={isUpdating}
-                              placeholder="Enter ad title"
-                              style={{
-                                width: '100%',
-                                padding: '10px 14px',
-                                fontSize: '14px',
-                                border: validationErrors.title ? '1px solid #dc3545' : '1px solid #ddd',
-                                borderRadius: '6px',
-                              }}
-                            />
-                            {validationErrors.title && (
-                              <div style={{ color: 'red', fontSize: '12px', marginTop: '4px' }}>
-                                {validationErrors.title}
-                              </div>
-                            )}
-                          </div>
-                          <div style={{ marginBottom: '16px' }}>
-                            <label style={{ 
-                              display: 'block', 
-                              marginBottom: '6px', 
-                              fontSize: '14px',
-                              fontWeight: '500',
-                              color: '#333',
-                            }}>
-                              Description (min 20 chars) *
-                            </label>
-                            <textarea
-                              value={editFormData.description || ''}
-                              onChange={(e) => handleFormDataChange(adId, 'description', e.target.value)}
-                              disabled={isUpdating}
-                              rows={4}
-                              placeholder="Enter ad description (minimum 20 characters)"
-                              style={{
-                                width: '100%',
-                                padding: '10px 14px',
-                                fontSize: '14px',
-                                border: validationErrors.description ? '1px solid #dc3545' : '1px solid #ddd',
-                                borderRadius: '6px',
-                                fontFamily: 'inherit',
-                                resize: 'vertical',
-                              }}
-                            />
-                            <div style={{ 
-                              fontSize: '12px', 
-                              color: validationErrors.description ? '#dc3545' : '#666', 
-                              marginTop: '6px',
-                            }}>
-                              {editFormData.description?.length || 0} / 20 characters
-                            </div>
-                            {validationErrors.description && (
-                              <div style={{ color: 'red', fontSize: '12px', marginTop: '4px' }}>
-                                {validationErrors.description}
-                              </div>
-                            )}
-                          </div>
-                          <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
-                            <div style={{ flex: 1 }}>
-                              <label style={{ 
-                                display: 'block', 
-                                marginBottom: '6px', 
-                                fontSize: '14px',
-                                fontWeight: '500',
-                                color: '#333',
-                              }}>
-                                Price *
-                              </label>
-                              <input
-                                type="number"
-                                value={editFormData.price || ''}
-                                onChange={(e) => handleFormDataChange(adId, 'price', e.target.value)}
-                                disabled={isUpdating}
-                                min="0"
-                                step="0.01"
-                                placeholder="0.00"
-                                style={{
-                                  width: '100%',
-                                  padding: '10px 14px',
-                                  fontSize: '14px',
-                                  border: validationErrors.price ? '1px solid #dc3545' : '1px solid #ddd',
-                                  borderRadius: '6px',
-                                }}
-                              />
-                              {validationErrors.price && (
-                                <div style={{ color: 'red', fontSize: '12px', marginTop: '4px' }}>
-                                  {validationErrors.price}
-                                </div>
-                              )}
-                            </div>
-                            <div style={{ flex: 1 }}>
-                              <label style={{ 
-                                display: 'block', 
-                                marginBottom: '6px', 
-                                fontSize: '14px',
-                                fontWeight: '500',
-                                color: '#333',
-                              }}>
-                                Currency *
-                              </label>
-                              <select
-                                value={editFormData.currency || 'EUR'}
-                                onChange={(e) => handleFormDataChange(adId, 'currency', e.target.value)}
-                                disabled={isUpdating}
-                                style={{
-                                  width: '100%',
-                                  padding: '10px 14px',
-                                  fontSize: '14px',
-                                  border: '1px solid #ddd',
-                                  borderRadius: '6px',
-                                }}
-                              >
-                                <option value="EUR">EUR</option>
-                                <option value="USD">USD</option>
-                                <option value="MDL">MDL</option>
-                              </select>
-                            </div>
-                          </div>
-                          <div style={{ display: 'flex', gap: '8px', marginTop: '20px' }}>
-                            <button
-                              onClick={() => handleSaveEdit(adId)}
-                              disabled={isUpdating}
-                              className="btn-success"
-                              style={{
-                                flex: 1,
-                                padding: '10px',
-                                fontSize: '14px',
-                                fontWeight: '500',
-                                opacity: isUpdating ? 0.6 : 1,
-                                cursor: isUpdating ? 'not-allowed' : 'pointer',
-                              }}
-                            >
-                              {isUpdating ? 'Saving...' : '💾 Save'}
-                            </button>
-                            <button
-                              onClick={() => handleCancelEdit(adId)}
-                              disabled={isUpdating}
-                              className="btn-secondary"
-                              style={{
-                                flex: 1,
-                                padding: '10px',
-                                fontSize: '14px',
-                                fontWeight: '500',
-                                opacity: isUpdating ? 0.6 : 1,
-                                cursor: isUpdating ? 'not-allowed' : 'pointer',
-                              }}
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                          {adError && (
-                            <div style={{
-                              color: '#c53030',
-                              fontSize: '12px',
-                              marginTop: '12px',
-                              padding: '8px',
-                              backgroundColor: '#fff5f5',
-                              borderRadius: '6px',
-                              border: '1px solid #fed7d7',
-                              whiteSpace: 'pre-line',
-                            }}>
-                              {adError}
-                            </div>
-                          )}
-                        </div>
-                      )}
+                      ) : null}
                     </div>
                   );
                 })}

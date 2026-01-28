@@ -25,11 +25,6 @@ const Chats = () => {
       return;
     }
 
-    // Guard: Don't refetch if already loading
-    if (loading) {
-      return;
-    }
-
     const fetchChats = async () => {
       try {
         setLoading(true);

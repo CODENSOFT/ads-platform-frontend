@@ -132,10 +132,9 @@ const CreateAd = () => {
         formData.append('images', file);
       });
 
-
       await createAd(formData);
       
-      success('Ad created');
+      success('Ad created successfully');
       navigate('/my-ads');
     } catch (err) {
       const errorMessage = parseError(err);
@@ -174,250 +173,218 @@ const CreateAd = () => {
   };
 
   return (
-    <div style={{ maxWidth: '600px', margin: '0 auto', padding: '20px' }}>
-      <h1>Create Ad</h1>
-      
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: '16px' }}>
-          <label htmlFor="title" style={{ display: 'block', marginBottom: '4px' }}>
-            Title *
-          </label>
-          <input
-            type="text"
-            id="title"
-            value={title}
-            onChange={(e) => {
-              setTitle(e.target.value);
-              setValidationErrors((prev) => ({ ...prev, title: null }));
-            }}
-            disabled={loading}
-            style={{
-              width: '100%',
-              padding: '8px',
-              fontSize: '16px',
-              border: validationErrors.title ? '1px solid red' : '1px solid #ddd',
-              borderRadius: '4px',
-            }}
-          />
-          {validationErrors.title && (
-            <div style={{ color: 'red', fontSize: '12px', marginTop: '4px' }}>
-              {validationErrors.title}
-            </div>
-          )}
+    <div className="page">
+      <div className="container">
+        {/* Page Header */}
+        <div className="page-header mb-6">
+          <h1 className="page-header__title">Create New Ad</h1>
+          <p className="page-header__subtitle">
+            Fill in the details below to create your listing
+          </p>
         </div>
 
-        <div style={{ marginBottom: '16px' }}>
-          <label htmlFor="description" style={{ display: 'block', marginBottom: '4px' }}>
-            Description (min 20 chars) *
-          </label>
-          <textarea
-            id="description"
-            value={description}
-            onChange={(e) => {
-              setDescription(e.target.value);
-              setValidationErrors((prev) => ({ ...prev, description: null }));
-            }}
-            disabled={loading}
-            rows={5}
-            style={{
-              width: '100%',
-              padding: '8px',
-              fontSize: '16px',
-              border: validationErrors.description ? '1px solid red' : '1px solid #ddd',
-              borderRadius: '4px',
-              fontFamily: 'inherit',
-            }}
-          />
-          <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
-            {description.length} / 20 characters
-          </div>
-          {validationErrors.description && (
-            <div style={{ color: 'red', fontSize: '12px', marginTop: '4px' }}>
-              {validationErrors.description}
+        {/* Form Card */}
+        <div className="card card--pad">
+          <form onSubmit={handleSubmit}>
+            {/* Title */}
+            <div className={`form-field ${validationErrors.title ? 'form-field--error' : ''}`}>
+              <label htmlFor="title" className="form-field__label form-field__label--required">
+                Title
+              </label>
+              <input
+                type="text"
+                id="title"
+                className="input"
+                value={title}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                  setValidationErrors((prev) => ({ ...prev, title: null }));
+                }}
+                disabled={loading}
+                placeholder="Enter ad title"
+              />
+              {validationErrors.title && (
+                <div className="form-field__error">{validationErrors.title}</div>
+              )}
             </div>
-          )}
-        </div>
 
-        <div style={{ marginBottom: '16px' }}>
-          <label htmlFor="category" style={{ display: 'block', marginBottom: '4px' }}>
-            Category *
-          </label>
-          <select
-            id="category"
-            value={categorySlug}
-            onChange={handleCategoryChange}
-            disabled={loading || loadingCategories}
-            style={{
-              width: '100%',
-              padding: '8px',
-              fontSize: '16px',
-              border: validationErrors.category ? '1px solid red' : '1px solid #ddd',
-              borderRadius: '4px',
-            }}
-          >
-            <option value="">{loadingCategories ? 'Loading categories...' : 'Select Category'}</option>
-            {categories.map((cat) => (
-              <option key={cat.slug} value={cat.slug}>
-                {cat.name || cat.label}
-              </option>
-            ))}
-          </select>
-          {validationErrors.category && (
-            <div style={{ color: 'red', fontSize: '12px', marginTop: '4px' }}>
-              {validationErrors.category}
+            {/* Description */}
+            <div className={`form-field ${validationErrors.description ? 'form-field--error' : ''}`}>
+              <label htmlFor="description" className="form-field__label form-field__label--required">
+                Description
+              </label>
+              <textarea
+                id="description"
+                className="input"
+                value={description}
+                onChange={(e) => {
+                  setDescription(e.target.value);
+                  setValidationErrors((prev) => ({ ...prev, description: null }));
+                }}
+                disabled={loading}
+                rows={6}
+                placeholder="Describe your item in detail (minimum 20 characters)"
+              />
+              <div className="form-field__hint">
+                {description.length} / 20 characters minimum
+              </div>
+              {validationErrors.description && (
+                <div className="form-field__error">{validationErrors.description}</div>
+              )}
             </div>
-          )}
-        </div>
 
-        {categorySlug && (
-          <div style={{ marginBottom: '16px' }}>
-            <label htmlFor="subCategory" style={{ display: 'block', marginBottom: '4px' }}>
-              Subcategory (optional)
-            </label>
-            <select
-              id="subCategory"
-              value={subCategorySlug}
-              onChange={handleSubCategoryChange}
-              disabled={loading || loadingCategories || !categorySlug}
-              style={{
-                width: '100%',
-                padding: '8px',
-                fontSize: '16px',
-                border: validationErrors.subCategory ? '1px solid red' : '1px solid #ddd',
-                borderRadius: '4px',
-              }}
-            >
-              <option value="">Select Subcategory (optional)</option>
-              {availableSubcategories.map((subCat) => {
-                const subSlug = subCat.slug || subCat;
-                const subLabel = subCat.name || subCat.label || subCat;
-                return (
-                  <option key={subSlug} value={subSlug}>
-                    {subLabel}
-                  </option>
-                );
-              })}
-            </select>
-            {validationErrors.subCategory && (
-              <div style={{ color: 'red', fontSize: '12px', marginTop: '4px' }}>
-                {validationErrors.subCategory}
+            {/* Category & Subcategory */}
+            <div className="form-grid form-grid--2">
+              <div className={`form-field ${validationErrors.category ? 'form-field--error' : ''}`}>
+                <label htmlFor="category" className="form-field__label form-field__label--required">
+                  Category
+                </label>
+                <select
+                  id="category"
+                  className="input"
+                  value={categorySlug}
+                  onChange={handleCategoryChange}
+                  disabled={loading || loadingCategories}
+                >
+                  <option value="">{loadingCategories ? 'Loading categories...' : 'Select Category'}</option>
+                  {categories.map((cat) => (
+                    <option key={cat.slug} value={cat.slug}>
+                      {cat.name || cat.label}
+                    </option>
+                  ))}
+                </select>
+                {validationErrors.category && (
+                  <div className="form-field__error">{validationErrors.category}</div>
+                )}
+              </div>
+
+              {categorySlug && (
+                <div className={`form-field ${validationErrors.subCategory ? 'form-field--error' : ''}`}>
+                  <label htmlFor="subCategory" className="form-field__label">
+                    Subcategory
+                  </label>
+                  <select
+                    id="subCategory"
+                    className="input"
+                    value={subCategorySlug}
+                    onChange={handleSubCategoryChange}
+                    disabled={loading || loadingCategories || !categorySlug}
+                  >
+                    <option value="">Select Subcategory (optional)</option>
+                    {availableSubcategories.map((subCat) => {
+                      const subSlug = subCat.slug || subCat;
+                      const subLabel = subCat.name || subCat.label || subCat;
+                      return (
+                        <option key={subSlug} value={subSlug}>
+                          {subLabel}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  {validationErrors.subCategory && (
+                    <div className="form-field__error">{validationErrors.subCategory}</div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Price & Currency */}
+            <div className="form-grid form-grid--2">
+              <div className={`form-field ${validationErrors.price ? 'form-field--error' : ''}`}>
+                <label htmlFor="price" className="form-field__label form-field__label--required">
+                  Price
+                </label>
+                <input
+                  type="number"
+                  id="price"
+                  className="input"
+                  value={price}
+                  onChange={(e) => {
+                    setPrice(e.target.value);
+                    setValidationErrors((prev) => ({ ...prev, price: null }));
+                  }}
+                  disabled={loading}
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                />
+                {validationErrors.price && (
+                  <div className="form-field__error">{validationErrors.price}</div>
+                )}
+              </div>
+
+              <div className={`form-field ${validationErrors.currency ? 'form-field--error' : ''}`}>
+                <label htmlFor="currency" className="form-field__label form-field__label--required">
+                  Currency
+                </label>
+                <select
+                  id="currency"
+                  className="input"
+                  value={currency}
+                  onChange={(e) => {
+                    setCurrency(e.target.value);
+                    setValidationErrors((prev) => ({ ...prev, currency: null }));
+                  }}
+                  disabled={loading}
+                >
+                  <option value="EUR">EUR</option>
+                  <option value="USD">USD</option>
+                  <option value="MDL">MDL</option>
+                </select>
+                {validationErrors.currency && (
+                  <div className="form-field__error">{validationErrors.currency}</div>
+                )}
+              </div>
+            </div>
+
+            {/* Images */}
+            <div className={`form-field ${validationErrors.images ? 'form-field--error' : ''}`}>
+              <label className="form-field__label form-field__label--required">
+                Images
+              </label>
+              <ImageUploader
+                value={images}
+                onChange={handleImagesChange}
+                maxFiles={10}
+              />
+              <div className="form-field__hint">
+                Upload at least 1 image. Maximum 10 images allowed.
+              </div>
+              {validationErrors.images && (
+                <div className="form-field__error">{validationErrors.images}</div>
+              )}
+            </div>
+
+            {/* Error Message */}
+            {error && (
+              <div className="card card--pad mb-6" style={{ background: 'var(--danger-soft)', borderColor: 'var(--danger)' }}>
+                <div className="text-danger t-small t-bold">{error}</div>
               </div>
             )}
-          </div>
-        )}
 
-        <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
-          <div style={{ flex: 1 }}>
-            <label htmlFor="price" style={{ display: 'block', marginBottom: '4px' }}>
-              Price *
-            </label>
-            <input
-              type="number"
-              id="price"
-              value={price}
-              onChange={(e) => {
-                setPrice(e.target.value);
-                setValidationErrors((prev) => ({ ...prev, price: null }));
-              }}
-              disabled={loading}
-              min="0"
-              step="0.01"
-              style={{
-                width: '100%',
-                padding: '8px',
-                fontSize: '16px',
-                border: validationErrors.price ? '1px solid red' : '1px solid #ddd',
-                borderRadius: '4px',
-              }}
-            />
-            {validationErrors.price && (
-              <div style={{ color: 'red', fontSize: '12px', marginTop: '4px' }}>
-                {validationErrors.price}
-              </div>
-            )}
-          </div>
-
-          <div style={{ flex: 1 }}>
-            <label htmlFor="currency" style={{ display: 'block', marginBottom: '4px' }}>
-              Currency *
-            </label>
-            <select
-              id="currency"
-              value={currency}
-              onChange={(e) => {
-                setCurrency(e.target.value);
-                setValidationErrors((prev) => ({ ...prev, currency: null }));
-              }}
-              disabled={loading}
-              style={{
-                width: '100%',
-                padding: '8px',
-                fontSize: '16px',
-                border: validationErrors.currency ? '1px solid red' : '1px solid #ddd',
-                borderRadius: '4px',
-              }}
-            >
-              <option value="EUR">EUR</option>
-              <option value="USD">USD</option>
-              <option value="MDL">MDL</option>
-            </select>
-            {validationErrors.currency && (
-              <div style={{ color: 'red', fontSize: '12px', marginTop: '4px' }}>
-                {validationErrors.currency}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div style={{ marginBottom: '16px' }}>
-          <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: '#333' }}>
-            Images (at least 1) *
-          </label>
-          <ImageUploader
-            value={images}
-            onChange={handleImagesChange}
-            maxFiles={10}
-          />
-          {validationErrors.images && (
-            <div style={{ color: 'red', fontSize: '12px', marginTop: '8px' }}>
-              {validationErrors.images}
+            {/* Submit Button */}
+            <div className="flex gap-4" style={{ marginTop: 'var(--spacing-xl)' }}>
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="btn btn-secondary"
+                disabled={loading}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={loading}
+              >
+                {loading ? 'Creating...' : 'Create Ad'}
+              </button>
             </div>
-          )}
+          </form>
         </div>
-
-        {error && (
-          <div style={{
-            color: 'red',
-            marginBottom: '16px',
-            padding: '8px',
-            backgroundColor: '#ffe6e6',
-            borderRadius: '4px',
-            whiteSpace: 'pre-line',
-          }}>
-            {error}
-          </div>
-        )}
-
-        <button
-          type="submit"
-          disabled={loading}
-          style={{
-            width: '100%',
-            padding: '12px',
-            fontSize: '16px',
-            backgroundColor: loading ? '#ccc' : '#007bff',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: loading ? 'not-allowed' : 'pointer',
-          }}
-        >
-          {loading ? 'Creating...' : 'Create Ad'}
-        </button>
-      </form>
+      </div>
     </div>
   );
 };
 
 export default CreateAd;
-

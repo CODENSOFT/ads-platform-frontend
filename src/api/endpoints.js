@@ -42,6 +42,15 @@ export const updateAdStatus = (id, status) =>
 export const updateAd = (id, payload) =>
   api.patch(`/ads/${id}`, payload);
 
+// Optional: update ad with multipart/form-data (e.g., if backend supports updating images)
+export const updateAdFormData = (id, formData) => {
+  return api.patch(`/ads/${id}`, formData, {
+    headers: {
+      'Content-Type': undefined, // Let axios set multipart/form-data with boundary
+    },
+  });
+};
+
 export const deleteAd = (id) =>
   api.delete(`/ads/${id}`);
 
