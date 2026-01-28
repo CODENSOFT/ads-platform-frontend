@@ -146,22 +146,31 @@ const Chats = () => {
     e.preventDefault();
     e.stopPropagation();
     
-    if (!window.confirm('Delete this conversation? Messages will be removed.')) {
+    if (!window.confirm('Delete conversation?')) {
       return;
     }
 
     setDeletingChatId(chatId);
     try {
       await deleteChat(chatId);
-      // Remove chat from state immediately
+      // Remove chat from state immediately without refetch
       setChats(prev => prev.filter(c => c._id !== chatId));
       showSuccess('Conversation deleted');
     } catch (err) {
-      const msg = parseError(err);
-      showError(msg);
+      // Handle specific error cases
       if (err?.response?.status === 401) {
         navigate('/login');
+        return;
       }
+      if (err?.response?.status === 404) {
+        // Chat already deleted - remove from state and show message
+        setChats(prev => prev.filter(c => c._id !== chatId));
+        showError('Chat already deleted');
+        return;
+      }
+      // Other errors
+      const msg = parseError(err);
+      showError(msg);
     } finally {
       setDeletingChatId(null);
     }
