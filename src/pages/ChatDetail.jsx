@@ -132,9 +132,11 @@ const ChatDetail = () => {
 
   if (loading) {
     return (
-      <div className="page-container">
-        <div className="container" style={{ textAlign: 'center', padding: '60px 20px' }}>
-          <div style={{ fontSize: '18px', color: '#666' }}>Loading messages...</div>
+      <div className="page">
+        <div className="container">
+          <div className="card card--pad text-center py-6">
+            <div className="t-body t-muted">Loading messages...</div>
+          </div>
         </div>
       </div>
     );
@@ -161,251 +163,71 @@ const ChatDetail = () => {
   };
 
   const otherParticipant = getOtherParticipant();
+  const participantInitial = otherParticipant?.name?.[0]?.toUpperCase() || 'U';
 
   return (
-    <div className="page-container" style={{ padding: 0, height: '100vh', overflow: 'hidden' }}>
-      <div style={{ 
-        display: 'flex', 
-        flexDirection: 'column', 
-        height: '100vh',
-        maxWidth: '1200px',
-        margin: '0 auto',
-        backgroundColor: '#fff',
-        boxShadow: '0 0 30px rgba(0,0,0,0.1)',
-      }}>
+    <div style={{ padding: 0, height: '100vh', overflow: 'hidden' }}>
+      <div className="chat-container">
         {/* Header */}
-        <div style={{ 
-          padding: '20px 24px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '16px',
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          color: '#fff',
-          boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-        }}>
+        <div className="chat-header">
           <button
             onClick={() => navigate('/chats')}
-            style={{
-              background: 'rgba(255,255,255,0.2)',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: '20px',
-              padding: '10px 12px',
-              color: '#fff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: '10px',
-              transition: 'all 0.2s',
-              backdropFilter: 'blur(10px)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
-              e.currentTarget.style.transform = 'scale(1.05)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
-              e.currentTarget.style.transform = 'scale(1)';
-            }}
+            className="chat-header__back"
+            aria-label="Back to conversations"
           >
             ←
           </button>
-          <div style={{
-            width: '44px',
-            height: '44px',
-            borderRadius: '50%',
-            background: 'rgba(255,255,255,0.3)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '20px',
-            fontWeight: '600',
-            backdropFilter: 'blur(10px)',
-          }}>
-            {otherParticipant?.name?.[0]?.toUpperCase() || '💬'}
+          <div className="chat-header__avatar">
+            {participantInitial}
           </div>
-          <div style={{ flex: 1 }}>
-            <h1 style={{ 
-              margin: 0, 
-              fontSize: '1.25rem',
-              fontWeight: '600',
-              color: '#fff',
-            }}>
+          <div className="chat-header__info">
+            <h1 className="chat-header__name">
               {otherParticipant?.name || 'Conversation'}
             </h1>
-            <div style={{ 
-              fontSize: '13px', 
-              opacity: 0.9,
-              marginTop: '2px',
-            }}>
-              {messages.length > 0 ? `${messages.length} messages` : 'No messages yet'}
-            </div>
+            <p className="chat-header__meta">
+              {messages.length > 0 ? `${messages.length} ${messages.length === 1 ? 'message' : 'messages'}` : 'No messages yet'}
+            </p>
           </div>
         </div>
 
         {/* Messages Area */}
-        <div style={{ 
-          flex: 1, 
-          overflowY: 'auto', 
-          padding: '24px',
-          display: 'flex', 
-          flexDirection: 'column', 
-          gap: '12px',
-          background: 'linear-gradient(180deg, #f5f7fa 0%, #e8ecf1 100%)',
-          position: 'relative',
-        }}>
-          {/* Background pattern */}
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            opacity: 0.03,
-            backgroundImage: 'radial-gradient(circle at 2px 2px, #667eea 1px, transparent 0)',
-            backgroundSize: '40px 40px',
-            pointerEvents: 'none',
-          }} />
-          
+        <div className="chat-messages">
           {messages.length === 0 ? (
-            <div style={{ 
-              textAlign: 'center', 
-              color: '#666', 
-              padding: '80px 20px',
-              position: 'relative',
-              zIndex: 1,
-            }}>
-              <div style={{ 
-                fontSize: '64px', 
-                marginBottom: '20px',
-                opacity: 0.3,
-              }}>💬</div>
-              <h3 style={{ 
-                color: '#1a1a1a',
-                marginBottom: '8px',
-                fontSize: '1.5rem',
-                fontWeight: '600',
-              }}>
-                No messages yet
-              </h3>
-              <p style={{ color: '#666', fontSize: '16px' }}>
+            <div className="chat-messages__empty">
+              <h3 className="t-h3 mb-2">No messages yet</h3>
+              <p className="t-body t-muted">
                 Start the conversation by sending a message below
               </p>
             </div>
           ) : (
             messages.map((message, index) => {
               const isOwn = message.sender === user?._id || message.sender?._id === user?._id;
-              const showAvatar = !isOwn && (index === 0 || messages[index - 1]?.sender !== message.sender);
+              const showAvatar = !isOwn && (index === 0 || messages[index - 1]?.sender !== message.sender && messages[index - 1]?.sender?._id !== message.sender?._id);
+              const isOptimistic = message._id?.startsWith('temp-');
               
               return (
                 <div
                   key={message._id}
-                  style={{
-                    display: 'flex',
-                    justifyContent: isOwn ? 'flex-end' : 'flex-start',
-                    alignItems: 'flex-end',
-                    gap: '10px',
-                    position: 'relative',
-                    zIndex: 1,
-                    animation: message._id?.startsWith('temp-') ? 'fadeIn 0.3s ease-in' : 'none',
-                  }}
+                  className={`chat-message ${isOwn ? 'chat-message--own' : ''} ${showAvatar ? 'chat-message--show-avatar' : ''} ${isOptimistic ? 'chat-message--optimistic' : ''}`}
                 >
                   {!isOwn && (
-                    <div style={{
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: '50%',
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      color: '#fff',
-                      flexShrink: 0,
-                      opacity: showAvatar ? 1 : 0,
-                      transition: 'opacity 0.2s',
-                      marginBottom: '4px',
-                    }}>
+                    <div className="chat-message__avatar">
                       {message.senderName?.[0]?.toUpperCase() || 'U'}
                     </div>
                   )}
-                  <div
-                    style={{
-                      maxWidth: '65%',
-                      padding: '14px 18px',
-                      borderRadius: isOwn 
-                        ? '20px 20px 6px 20px' 
-                        : '20px 20px 20px 6px',
-                      background: isOwn 
-                        ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                        : '#fff',
-                      color: isOwn ? '#fff' : '#1a1a1a',
-                      boxShadow: isOwn
-                        ? '0 4px 12px rgba(102, 126, 234, 0.3)'
-                        : '0 2px 8px rgba(0,0,0,0.08)',
-                      position: 'relative',
-                      transition: 'transform 0.2s, box-shadow 0.2s',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.boxShadow = isOwn
-                        ? '0 6px 16px rgba(102, 126, 234, 0.4)'
-                        : '0 4px 12px rgba(0,0,0,0.12)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = isOwn
-                        ? '0 4px 12px rgba(102, 126, 234, 0.3)'
-                        : '0 2px 8px rgba(0,0,0,0.08)';
-                    }}
-                  >
+                  <div className="chat-message__bubble">
                     {!isOwn && message.senderName && (
-                      <div style={{ 
-                        fontSize: '13px', 
-                        fontWeight: '600', 
-                        marginBottom: '6px', 
-                        opacity: 0.9,
-                        color: '#667eea',
-                      }}>
+                      <div className="chat-message__sender">
                         {message.senderName}
                       </div>
                     )}
-                    <div style={{ 
-                      marginBottom: '6px', 
-                      wordBreak: 'break-word',
-                      lineHeight: '1.6',
-                      fontSize: '15px',
-                      fontWeight: isOwn ? '400' : '400',
-                    }}>
+                    <div className="chat-message__text">
                       {message.text}
                     </div>
-                    <div style={{ 
-                      fontSize: '11px', 
-                      opacity: isOwn ? 0.8 : 0.6, 
-                      textAlign: 'right',
-                      marginTop: '4px',
-                      fontWeight: '500',
-                    }}>
+                    <div className="chat-message__time">
                       {formatTime(message.createdAt)}
                     </div>
                   </div>
-                  {isOwn && (
-                    <div style={{
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: '50%',
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      color: '#fff',
-                      flexShrink: 0,
-                      opacity: 0,
-                    }} />
-                  )}
                 </div>
               );
             })
@@ -414,100 +236,26 @@ const ChatDetail = () => {
         </div>
 
         {/* Input Area */}
-        <form 
-          onSubmit={handleSend} 
-          style={{ 
-            padding: '20px 24px',
-            background: '#fff',
-            borderTop: '1px solid #e8ecf1',
-            display: 'flex', 
-            gap: '12px',
-            alignItems: 'center',
-            boxShadow: '0 -2px 10px rgba(0,0,0,0.05)',
-          }}
-        >
+        <form onSubmit={handleSend} className="chat-input">
           <input
             type="text"
             value={messageText}
             onChange={(e) => setMessageText(e.target.value)}
             placeholder="Type a message..."
             disabled={sending}
-            style={{
-              flex: 1,
-              padding: '14px 20px',
-              border: '2px solid #e8ecf1',
-              borderRadius: '25px',
-              fontSize: '15px',
-              outline: 'none',
-              background: '#f8f9fa',
-              transition: 'all 0.2s',
-              fontFamily: 'inherit',
-            }}
-            onFocus={(e) => {
-              e.currentTarget.style.borderColor = '#667eea';
-              e.currentTarget.style.background = '#fff';
-              e.currentTarget.style.boxShadow = '0 0 0 4px rgba(102, 126, 234, 0.1)';
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderColor = '#e8ecf1';
-              e.currentTarget.style.background = '#f8f9fa';
-              e.currentTarget.style.boxShadow = 'none';
-            }}
+            className="chat-input__field"
           />
           <button
             type="submit"
             disabled={!messageText.trim() || sending}
-            style={{
-              padding: '14px 28px',
-              borderRadius: '25px',
-              fontSize: '15px',
-              fontWeight: '600',
-              cursor: !messageText.trim() || sending ? 'not-allowed' : 'pointer',
-              opacity: !messageText.trim() || sending ? 0.5 : 1,
-              minWidth: '110px',
-              background: !messageText.trim() || sending 
-                ? '#ccc' 
-                : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: '#fff',
-              border: 'none',
-              transition: 'all 0.2s',
-              boxShadow: !messageText.trim() || sending 
-                ? 'none' 
-                : '0 4px 12px rgba(102, 126, 234, 0.3)',
-            }}
-            onMouseEnter={(e) => {
-              if (messageText.trim() && !sending) {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.4)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (messageText.trim() && !sending) {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
-              }
-            }}
+            className="chat-input__send"
           >
             {sending ? 'Sending...' : 'Send'}
           </button>
         </form>
       </div>
-      
-      <style>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
     </div>
   );
 };
 
 export default ChatDetail;
-

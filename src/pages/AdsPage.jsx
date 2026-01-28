@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { getAds } from '../api/endpoints';
 import AdCard from '../components/AdCard';
@@ -21,7 +21,8 @@ const SORT_OPTIONS = [
 const AdsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
-  const [ads, setAds] = useState([]);
+  const [allAds, setAllAds] = useState([]);
+  const [visibleAds, setVisibleAds] = useState([]);
   const [pagination, setPagination] = useState({
     page: 1,
     pages: 1,
@@ -32,53 +33,20 @@ const AdsPage = () => {
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Read filters from URL
-  const category = searchParams.get('category') || '';
-  const search = searchParams.get('search') || '';
+  const categoryParam = (searchParams.get('category') || '').trim();
+  const searchParam = (searchParams.get('search') || '').trim();
   const sort = searchParams.get('sort') || '-createdAt';
   const page = parseInt(searchParams.get('page') || '1', 10);
   const limit = parseInt(searchParams.get('limit') || '20', 10);
   const minPrice = searchParams.get('minPrice') || '';
   const maxPrice = searchParams.get('maxPrice') || '';
 
-  const normalizedSearch = useMemo(() => String(search || '').trim().toLowerCase(), [search]);
-  const normalizedCategory = useMemo(() => String(category || '').trim().toLowerCase(), [category]);
+  // DEV logs
+  if (import.meta.env.DEV) {
+    console.log({ categoryParam, searchParam });
+  }
 
-  // Client-side category filter helper
-  const matchesCategory = useCallback((ad, categorySlug) => {
-    if (!categorySlug) return true;
-    
-    const slug = categorySlug.toLowerCase();
-    
-    // Try multiple possible category field structures
-    const adCategory = ad?.category;
-    const adCategorySlug = ad?.categorySlug || ad?.category?.slug;
-    const adCategoryId = ad?.categoryId;
-    
-    // Check direct slug match
-    if (adCategorySlug && String(adCategorySlug).toLowerCase() === slug) {
-      return true;
-    }
-    
-    // Check if category object has slug
-    if (adCategory && typeof adCategory === 'object' && adCategory.slug) {
-      if (String(adCategory.slug).toLowerCase() === slug) {
-        return true;
-      }
-    }
-    
-    // Check if category is a string that matches
-    if (adCategory && typeof adCategory === 'string' && String(adCategory).toLowerCase() === slug) {
-      return true;
-    }
-    
-    // Check categoryId (last resort)
-    if (adCategoryId && String(adCategoryId).toLowerCase() === slug) {
-      return true;
-    }
-    
-    return false;
-  }, []);
-
+  // Fetch ads from API (without filtering)
   const fetchAds = useCallback(async () => {
     try {
       setLoading(true);
@@ -88,10 +56,10 @@ const AdsPage = () => {
         sort,
       };
       
-      // Try server-side filtering first
-      if (category) params.category = category;
-      if (category) params.categorySlug = category; // Also try categorySlug param
-      if (search) params.search = search;
+      // Try server-side filtering first (if API supports it)
+      if (categoryParam) params.category = categoryParam;
+      if (categoryParam) params.categorySlug = categoryParam;
+      if (searchParam) params.search = searchParam;
       if (minPrice) params.minPrice = minPrice;
       if (maxPrice) params.maxPrice = maxPrice;
 
@@ -107,41 +75,76 @@ const AdsPage = () => {
         adsArray = data;
       }
 
-      let finalAds = Array.isArray(adsArray) ? adsArray : [];
+      const fetchedAds = Array.isArray(adsArray) ? adsArray : [];
       
-      // Client-side fallback filtering
-      if (normalizedCategory) {
-        finalAds = finalAds.filter((ad) => matchesCategory(ad, normalizedCategory));
-      }
-      
-      if (normalizedSearch) {
-        finalAds = finalAds.filter((ad) => {
-          const title = String(ad?.title || ad?.name || '').toLowerCase();
-          return title.includes(normalizedSearch);
-        });
-      }
-
-      setAds(finalAds);
+      // Store all fetched ads (DO NOT filter here)
+      setAllAds(fetchedAds);
       
       const paginationData = data?.pagination || {};
       setPagination({
         page: paginationData.page || page,
         pages: paginationData.pages || 1,
-        total: paginationData.total || finalAds.length,
+        total: paginationData.total || fetchedAds.length,
         hasNext: paginationData.hasNext || false,
         hasPrev: paginationData.hasPrev || false,
       });
     } catch (err) {
       console.error('Failed to fetch ads:', err);
-      setAds([]);
+      setAllAds([]);
     } finally {
       setLoading(false);
     }
-  }, [category, search, sort, page, limit, minPrice, maxPrice, normalizedSearch, normalizedCategory, matchesCategory]);
+  }, [page, limit, sort, minPrice, maxPrice, categoryParam, searchParam]);
 
+  // Fetch ads when params change
   useEffect(() => {
     fetchAds();
   }, [fetchAds]);
+
+  // Filter ads based on query params (client-side fallback)
+  useEffect(() => {
+    let filtered = [...allAds];
+
+    // Filter by category
+    if (categoryParam) {
+      const categorySlug = categoryParam.toLowerCase();
+      filtered = filtered.filter((ad) => {
+        // Support both string and object category
+        const adCategory = ad?.category;
+        const adCategorySlug = ad?.categorySlug || ad?.category?.slug;
+        
+        // Check direct slug match
+        if (adCategorySlug && String(adCategorySlug).toLowerCase().trim() === categorySlug) {
+          return true;
+        }
+        
+        // Check if category object has slug
+        if (adCategory && typeof adCategory === 'object' && adCategory.slug) {
+          if (String(adCategory.slug).toLowerCase().trim() === categorySlug) {
+            return true;
+          }
+        }
+        
+        // Check if category is a string that matches
+        if (adCategory && typeof adCategory === 'string' && String(adCategory).toLowerCase().trim() === categorySlug) {
+          return true;
+        }
+        
+        return false;
+      });
+    }
+
+    // Filter by search (title contains query)
+    if (searchParam) {
+      const query = searchParam.toLowerCase();
+      filtered = filtered.filter((ad) => {
+        const title = String(ad?.title || ad?.name || '').toLowerCase();
+        return title.includes(query);
+      });
+    }
+
+    setVisibleAds(filtered);
+  }, [allAds, categoryParam, searchParam]);
 
   const handleFilterChange = (key, value) => {
     const newParams = new URLSearchParams(searchParams);
@@ -176,7 +179,7 @@ const AdsPage = () => {
     setSearchParams(newParams);
   };
 
-  const selectedCategoryName = category ? CATEGORIES.find(c => c.slug === category)?.name : null;
+  const selectedCategoryName = categoryParam ? CATEGORIES.find(c => c.slug === categoryParam)?.name : null;
 
   return (
     <div className="page">
@@ -189,17 +192,17 @@ const AdsPage = () => {
                 {selectedCategoryName || 'All Ads'}
               </h1>
               <p className="page-header__subtitle">
-                {pagination.total} {pagination.total === 1 ? 'result' : 'results'}
+                {visibleAds.length} {visibleAds.length === 1 ? 'result' : 'results'}
               </p>
             </div>
           </div>
 
           {/* Filter Pills */}
-          {(category || search) && (
+          {(categoryParam || searchParam) && (
             <div className="flex items-center gap-2 flex-wrap mb-6">
-              {category && (
+              {categoryParam && (
                 <span className="pill">
-                  Category: {selectedCategoryName || category}
+                  Category: {selectedCategoryName || categoryParam}
                   <button
                     type="button"
                     onClick={clearCategory}
@@ -210,9 +213,9 @@ const AdsPage = () => {
                   </button>
                 </span>
               )}
-              {search && (
+              {searchParam && (
                 <span className="pill">
-                  Search: "{search}"
+                  Search: "{searchParam}"
                   <button
                     type="button"
                     onClick={clearSearch}
@@ -240,7 +243,7 @@ const AdsPage = () => {
               <div>
                 <label className="t-small t-bold mb-2 block">Category</label>
                 <select
-                  value={category}
+                  value={categoryParam}
                   onChange={(e) => handleFilterChange('category', e.target.value)}
                   className="input"
                 >
@@ -294,16 +297,26 @@ const AdsPage = () => {
                   <div key={i} className="card card--pad" style={{ height: 320, background: 'var(--surface-2)' }} />
                 ))}
               </div>
-            ) : ads.length === 0 ? (
+            ) : visibleAds.length === 0 ? (
               <div className="card card--pad text-center py-6">
-                <div className="t-h3 mb-2">No ads found</div>
-                <p className="t-muted">Try adjusting your filters</p>
+                <h3 className="t-h3 mb-2">No listings found</h3>
+                <p className="t-body t-muted mb-4">
+                  {categoryParam || searchParam 
+                    ? 'Try adjusting your filters or search terms'
+                    : 'No ads available at the moment'
+                  }
+                </p>
+                {(categoryParam || searchParam) && (
+                  <button className="btn btn-secondary" onClick={clearAll}>
+                    Clear all filters
+                  </button>
+                )}
               </div>
             ) : (
               <>
                 <div className="grid grid-3">
-                  {ads.map(ad => (
-                    <AdCard key={ad._id} ad={ad} showFavoriteButton={true} />
+                  {visibleAds.map(ad => (
+                    <AdCard key={ad._id || ad.id} ad={ad} showFavoriteButton={true} />
                   ))}
                 </div>
 

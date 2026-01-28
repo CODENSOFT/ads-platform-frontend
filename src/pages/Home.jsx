@@ -100,7 +100,7 @@ const Home = () => {
   }, []);
 
   const handleCategoryClick = (slug) => {
-    navigate(`/ads?category=${slug}`);
+    navigate(`/ads?category=${encodeURIComponent(slug)}`);
   };
 
   return (

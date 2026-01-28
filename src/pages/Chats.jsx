@@ -202,8 +202,8 @@ const Chats = () => {
       <div className="container">
         {/* Header */}
         <div className="page-header mb-6">
-          <h1 className="section-title">My Conversations</h1>
-          <p className="section-subtitle">
+          <h1 className="page-header__title">My Conversations</h1>
+          <p className="page-header__subtitle">
             {chats.length > 0 
               ? `${chats.length} ${chats.length === 1 ? 'conversation' : 'conversations'}`
               : 'Your conversations will appear here'
