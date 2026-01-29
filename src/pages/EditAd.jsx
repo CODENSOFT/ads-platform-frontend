@@ -5,6 +5,7 @@ import useCategories from '../hooks/useCategories';
 import ImageUploader from '../components/ImageUploader';
 import { useToast } from '../hooks/useToast';
 import { parseError } from '../utils/errorParser';
+import '../styles/edit-ad.css';
 
 const EditAd = () => {
   const { id } = useParams();
@@ -124,7 +125,6 @@ const EditAd = () => {
       };
       if (subCategorySlug && subCategorySlug.trim()) payload.subCategorySlug = subCategorySlug.trim();
 
-      // If user attached new images, attempt multipart PATCH (if backend supports it)
       if (newImages.length > 0) {
         const formData = new FormData();
         Object.entries(payload).forEach(([k, v]) => formData.append(k, String(v)));
@@ -145,12 +145,27 @@ const EditAd = () => {
     }
   };
 
+  const step1Active =
+    title.trim().length >= 3 && description.trim().length >= 20 && price && Number(price) > 0;
+  const step2Active = !!categorySlug?.trim();
+  const step3Active = newImages.length > 0;
+
+  const existingImages = Array.isArray(ad?.images) ? ad.images : [];
+  const displayTitle = title.trim() || 'Your title…';
+  const displayPrice =
+    price && Number(price) > 0 ? `${price} ${currency}` : '--';
+  const displayCategory =
+    selectedCategory?.name || selectedCategory?.label || categorySlug || '--';
+  const adStatus = ad?.status;
+
   if (loading) {
     return (
-      <div className="page">
-        <div className="container">
-          <div className="card card--pad text-center py-6">
-            <div className="t-muted">Loading ad…</div>
+      <div className="editad-page">
+        <div className="editad-shell">
+          <div className="editad-skeleton card">
+            <div className="editad-skeleton-line" />
+            <div className="editad-skeleton-text" />
+            <div className="editad-skeleton-text editad-skeleton-text--short" />
           </div>
         </div>
       </div>
@@ -159,12 +174,18 @@ const EditAd = () => {
 
   if (error && !ad) {
     return (
-      <div className="page">
-        <div className="container">
-          <div className="card card--pad text-center py-6">
-            <div className="t-h3 mb-2">Could not load ad</div>
-            <div className="t-muted mb-6">{error}</div>
-            <button className="btn btn-secondary" onClick={() => navigate('/my-ads')}>
+      <div className="editad-page">
+        <div className="editad-shell">
+          <div className="editad-empty card">
+            <div className="editad-empty__icon" aria-hidden="true">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 8v4M12 16h.01" />
+              </svg>
+            </div>
+            <h2 className="editad-empty__title">Could not load ad</h2>
+            <p className="editad-empty__text">{error}</p>
+            <button type="button" className="btn btn-primary" onClick={() => navigate('/my-ads')}>
               Back to My Ads
             </button>
           </div>
@@ -173,200 +194,289 @@ const EditAd = () => {
     );
   }
 
-  const existingImages = Array.isArray(ad?.images) ? ad.images : [];
-
   return (
-    <div className="page">
-      <div className="container">
-        <div className="page-header mb-6">
-          <h1 className="page-header__title">Edit Ad</h1>
-          <p className="page-header__subtitle">Update details and publish changes</p>
-        </div>
+    <div className="editad-page">
+      <div className="editad-shell">
+        <header className="editad-header">
+          <div>
+            <h1 className="editad-title">Edit Ad</h1>
+            <p className="editad-sub">Update details and publish changes</p>
+          </div>
+          <div className="editad-actions">
+            <button type="button" className="btn btn-secondary" onClick={() => navigate(-1)}>
+              Back
+            </button>
+            <button
+              type="submit"
+              form="edit-ad-form"
+              className="btn btn-primary"
+              disabled={saving}
+            >
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </header>
 
-        <div className="card card--pad">
-          <form onSubmit={handleSubmit}>
-            <div className="form-grid form-grid--2">
-              <div className={`form-field ${validationErrors.title ? 'form-field--error' : ''}`}>
-                <label className="form-field__label form-field__label--required" htmlFor="title">
-                  Title
-                </label>
-                <input
-                  id="title"
-                  className="input"
-                  value={title}
-                  onChange={(e) => {
-                    setTitle(e.target.value);
-                    setValidationErrors((prev) => ({ ...prev, title: null }));
-                  }}
-                  disabled={saving}
-                />
-                {validationErrors.title && <div className="form-field__error">{validationErrors.title}</div>}
+        <div className="editad-grid">
+          <aside className="editad-preview">
+            <div className="card editad-preview-card">
+              <h2 className="editad-preview-title">Live Preview</h2>
+              <div className="editad-preview-label">Title</div>
+              <div className={`editad-preview-value ${!title.trim() ? 'editad-preview-value--muted' : ''}`}>
+                {displayTitle}
               </div>
-
-              <div className="form-grid form-grid--2" style={{ gap: 'var(--spacing-lg)' }}>
-                <div className={`form-field ${validationErrors.price ? 'form-field--error' : ''}`}>
-                  <label className="form-field__label form-field__label--required" htmlFor="price">
-                    Price
-                  </label>
-                  <input
-                    id="price"
-                    className="input"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={price}
-                    onChange={(e) => {
-                      setPrice(e.target.value);
-                      setValidationErrors((prev) => ({ ...prev, price: null }));
-                    }}
-                    disabled={saving}
-                  />
-                  {validationErrors.price && <div className="form-field__error">{validationErrors.price}</div>}
-                </div>
-
-                <div className={`form-field ${validationErrors.currency ? 'form-field--error' : ''}`}>
-                  <label className="form-field__label form-field__label--required" htmlFor="currency">
-                    Currency
-                  </label>
-                  <select
-                    id="currency"
-                    className="input"
-                    value={currency}
-                    onChange={(e) => {
-                      setCurrency(e.target.value);
-                      setValidationErrors((prev) => ({ ...prev, currency: null }));
-                    }}
-                    disabled={saving}
-                  >
-                    <option value="EUR">EUR</option>
-                    <option value="USD">USD</option>
-                    <option value="MDL">MDL</option>
-                  </select>
-                  {validationErrors.currency && <div className="form-field__error">{validationErrors.currency}</div>}
-                </div>
-              </div>
-            </div>
-
-            <div className={`form-field ${validationErrors.description ? 'form-field--error' : ''}`}>
-              <label className="form-field__label form-field__label--required" htmlFor="description">
-                Description
-              </label>
-              <textarea
-                id="description"
-                className="input"
-                rows={7}
-                value={description}
-                onChange={(e) => {
-                  setDescription(e.target.value);
-                  setValidationErrors((prev) => ({ ...prev, description: null }));
-                }}
-                disabled={saving}
-              />
-              <div className="form-field__hint">{description.length} / 20 characters minimum</div>
-              {validationErrors.description && (
-                <div className="form-field__error">{validationErrors.description}</div>
+              <div className="editad-preview-label">Price</div>
+              <div className="editad-preview-value">{displayPrice}</div>
+              <div className="editad-preview-label">Category</div>
+              <div className="editad-preview-value">{displayCategory}</div>
+              {adStatus && (
+                <>
+                  <div className="editad-preview-label">Status</div>
+                  <div className="editad-preview-value">
+                    <span className="editad-preview-badge">{adStatus}</span>
+                  </div>
+                </>
               )}
             </div>
 
-            <div className="form-grid form-grid--2">
-              <div className={`form-field ${validationErrors.category ? 'form-field--error' : ''}`}>
-                <label className="form-field__label form-field__label--required" htmlFor="category">
-                  Category
-                </label>
-                <select
-                  id="category"
-                  className="input"
-                  value={categorySlug}
-                  onChange={handleCategoryChange}
-                  disabled={saving || loadingCategories}
-                >
-                  <option value="">{loadingCategories ? 'Loading categories…' : 'Select Category'}</option>
-                  {categories.map((cat) => (
-                    <option key={cat.slug} value={cat.slug}>
-                      {cat.name || cat.label}
-                    </option>
-                  ))}
-                </select>
-                {validationErrors.category && <div className="form-field__error">{validationErrors.category}</div>}
-              </div>
-
-              <div className={`form-field ${validationErrors.subCategory ? 'form-field--error' : ''}`}>
-                <label className="form-field__label" htmlFor="subCategory">
-                  Subcategory
-                </label>
-                <select
-                  id="subCategory"
-                  className="input"
-                  value={subCategorySlug}
-                  onChange={(e) => {
-                    setSubCategorySlug(e.target.value);
-                    setValidationErrors((prev) => ({ ...prev, subCategory: null }));
-                  }}
-                  disabled={saving || loadingCategories || !categorySlug}
-                >
-                  <option value="">Select Subcategory (optional)</option>
-                  {availableSubcategories.map((subCat) => {
-                    const subSlug = subCat.slug || subCat;
-                    const subLabel = subCat.name || subCat.label || subCat;
-                    return (
-                      <option key={subSlug} value={subSlug}>
-                        {subLabel}
-                      </option>
-                    );
-                  })}
-                </select>
-                {validationErrors.subCategory && (
-                  <div className="form-field__error">{validationErrors.subCategory}</div>
-                )}
-              </div>
-            </div>
-
-            {/* Existing images */}
             {existingImages.length > 0 && (
-              <div className="form-field">
-                <div className="form-field__label">Current images</div>
-                <div className="grid grid-4" style={{ gap: '12px' }}>
+              <div className="card editad-images-card">
+                <h3 className="editad-images-title">Current images</h3>
+                <div className="editad-images-grid">
                   {existingImages.slice(0, 8).map((src, idx) => (
-                    <div key={`${src}-${idx}`} className="card overflow-hidden" style={{ padding: 0 }}>
-                      <img
-                        src={src}
-                        alt=""
-                        style={{ width: '100%', height: 92, objectFit: 'cover', display: 'block' }}
-                      />
+                    <div key={`${src}-${idx}`} className="editad-images-item">
+                      <img src={src} alt="" />
                     </div>
                   ))}
                 </div>
-                <div className="form-field__hint">
-                  To replace images, upload new ones below (if supported by the backend).
+                <p className="editad-images-note">
+                  Upload new images to replace (if supported by backend).
+                </p>
+              </div>
+            )}
+          </aside>
+
+          <main className="editad-form card">
+            <div className="editad-stepper">
+              <div className={`editad-stepper-step ${step1Active ? 'is-active' : ''}`}>
+                <span className="editad-stepper-step-num">1</span>
+                Details
+              </div>
+              <span className="editad-stepper-sep" />
+              <div className={`editad-stepper-step ${step2Active ? 'is-active' : ''}`}>
+                <span className="editad-stepper-step-num">2</span>
+                Category
+              </div>
+              <span className="editad-stepper-sep" />
+              <div className={`editad-stepper-step ${step3Active ? 'is-active' : ''}`}>
+                <span className="editad-stepper-step-num">3</span>
+                Images & Save
+              </div>
+            </div>
+
+            <form id="edit-ad-form" onSubmit={handleSubmit}>
+              {error && (
+                <div className="editad-alert editad-alert--error" role="alert">
+                  {error}
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* New images */}
-            <div className={`form-field ${validationErrors.images ? 'form-field--error' : ''}`}>
-              <label className="form-field__label">Upload new images (optional)</label>
-              <ImageUploader value={newImages} onChange={setNewImages} maxFiles={10} />
-              {validationErrors.images && <div className="form-field__error">{validationErrors.images}</div>}
-            </div>
+              <section className="editad-section">
+                <h3 className="editad-section-title">Listing details</h3>
+                <p className="editad-section-sub">Title and description for your listing</p>
 
-            {error && (
-              <div
-                className="card card--pad mb-6"
-                style={{ background: 'var(--danger-soft)', borderColor: 'rgba(239, 68, 68, 0.28)' }}
-              >
-                <div className="text-danger t-small t-bold">{error}</div>
-              </div>
-            )}
+                <div className={`editad-field ${validationErrors.title ? 'editad-field--error' : ''}`}>
+                  <label htmlFor="title" className="editad-field__label editad-field__label--required">
+                    Title
+                  </label>
+                  <input
+                    type="text"
+                    id="title"
+                    className="editad-input"
+                    value={title}
+                    onChange={(e) => {
+                      setTitle(e.target.value);
+                      setValidationErrors((prev) => ({ ...prev, title: null }));
+                    }}
+                    disabled={saving}
+                    placeholder="Enter ad title"
+                  />
+                  {validationErrors.title && (
+                    <div className="editad-field__error">{validationErrors.title}</div>
+                  )}
+                </div>
 
-            <div className="flex gap-4" style={{ marginTop: 'var(--spacing-xl)' }}>
-              <button type="button" className="btn btn-secondary" disabled={saving} onClick={() => navigate(-1)}>
-                Cancel
-              </button>
-              <button type="submit" className="btn btn-primary" disabled={saving}>
-                {saving ? 'Saving…' : 'Save changes'}
-              </button>
-            </div>
-          </form>
+                <div className={`editad-field ${validationErrors.description ? 'editad-field--error' : ''}`}>
+                  <label htmlFor="description" className="editad-field__label editad-field__label--required">
+                    Description
+                  </label>
+                  <textarea
+                    id="description"
+                    className="editad-input"
+                    value={description}
+                    onChange={(e) => {
+                      setDescription(e.target.value);
+                      setValidationErrors((prev) => ({ ...prev, description: null }));
+                    }}
+                    disabled={saving}
+                    rows={6}
+                    placeholder="Describe your item in detail (minimum 20 characters)"
+                  />
+                  <div
+                    className={`editad-counter ${description.length >= 20 ? 'editad-counter--ok' : 'editad-counter--warn'}`}
+                  >
+                    {description.length} / 20 minimum
+                  </div>
+                  {validationErrors.description && (
+                    <div className="editad-field__error">{validationErrors.description}</div>
+                  )}
+                </div>
+              </section>
+
+              <section className="editad-section">
+                <h3 className="editad-section-title">Pricing</h3>
+                <p className="editad-section-sub">Set price and currency</p>
+
+                <div className="editad-grid-2">
+                  <div className={`editad-field ${validationErrors.price ? 'editad-field--error' : ''}`}>
+                    <label htmlFor="price" className="editad-field__label editad-field__label--required">
+                      Price
+                    </label>
+                    <input
+                      type="number"
+                      id="price"
+                      className="editad-input"
+                      value={price}
+                      onChange={(e) => {
+                        setPrice(e.target.value);
+                        setValidationErrors((prev) => ({ ...prev, price: null }));
+                      }}
+                      disabled={saving}
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                    />
+                    {validationErrors.price && (
+                      <div className="editad-field__error">{validationErrors.price}</div>
+                    )}
+                  </div>
+                  <div className={`editad-field ${validationErrors.currency ? 'editad-field--error' : ''}`}>
+                    <label htmlFor="currency" className="editad-field__label editad-field__label--required">
+                      Currency
+                    </label>
+                    <select
+                      id="currency"
+                      className="editad-input"
+                      value={currency}
+                      onChange={(e) => {
+                        setCurrency(e.target.value);
+                        setValidationErrors((prev) => ({ ...prev, currency: null }));
+                      }}
+                      disabled={saving}
+                    >
+                      <option value="EUR">EUR</option>
+                      <option value="USD">USD</option>
+                      <option value="MDL">MDL</option>
+                    </select>
+                    {validationErrors.currency && (
+                      <div className="editad-field__error">{validationErrors.currency}</div>
+                    )}
+                  </div>
+                </div>
+              </section>
+
+              <section className="editad-section">
+                <h3 className="editad-section-title">Category</h3>
+                <p className="editad-section-sub">Choose a category and optional subcategory</p>
+
+                <div className={`editad-field ${validationErrors.category ? 'editad-field--error' : ''}`}>
+                  <label htmlFor="category" className="editad-field__label editad-field__label--required">
+                    Category
+                  </label>
+                  <select
+                    id="category"
+                    className="editad-input"
+                    value={categorySlug}
+                    onChange={handleCategoryChange}
+                    disabled={saving || loadingCategories}
+                  >
+                    <option value="">
+                      {loadingCategories ? 'Loading categories…' : 'Select Category'}
+                    </option>
+                    {categories.map((cat) => (
+                      <option key={cat.slug} value={cat.slug}>
+                        {cat.name || cat.label}
+                      </option>
+                    ))}
+                  </select>
+                  {validationErrors.category && (
+                    <div className="editad-field__error">{validationErrors.category}</div>
+                  )}
+                </div>
+
+                {categorySlug && (
+                  <div className={`editad-field ${validationErrors.subCategory ? 'editad-field--error' : ''}`}>
+                    <label htmlFor="subCategory" className="editad-field__label">
+                      Subcategory
+                    </label>
+                    <select
+                      id="subCategory"
+                      className="editad-input"
+                      value={subCategorySlug}
+                      onChange={(e) => {
+                        setSubCategorySlug(e.target.value);
+                        setValidationErrors((prev) => ({ ...prev, subCategory: null }));
+                      }}
+                      disabled={saving || loadingCategories || !categorySlug}
+                    >
+                      <option value="">Select Subcategory (optional)</option>
+                      {availableSubcategories.map((subCat) => {
+                        const subSlug = subCat.slug || subCat;
+                        const subLabel = subCat.name || subCat.label || subCat;
+                        return (
+                          <option key={subSlug} value={subSlug}>
+                            {subLabel}
+                          </option>
+                        );
+                      })}
+                    </select>
+                    {validationErrors.subCategory && (
+                      <div className="editad-field__error">{validationErrors.subCategory}</div>
+                    )}
+                  </div>
+                )}
+              </section>
+
+              <section className="editad-section">
+                <h3 className="editad-section-title">Images</h3>
+                <p className="editad-section-sub">Upload new images to replace (if supported by backend)</p>
+
+                {existingImages.length > 0 && (
+                  <div className="editad-field">
+                    <div className="editad-field__label">Current images</div>
+                    <div className="editad-images-grid editad-images-grid--form">
+                      {existingImages.slice(0, 8).map((src, idx) => (
+                        <div key={`${src}-${idx}`} className="editad-images-item">
+                          <img src={src} alt="" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className={`editad-field ${validationErrors.images ? 'editad-field--error' : ''}`}>
+                  <label className="editad-field__label">Upload new images (optional)</label>
+                  <ImageUploader value={newImages} onChange={setNewImages} maxFiles={10} />
+                  <div className="editad-field__hint">
+                    Upload new images to replace. Backend may replace existing images.
+                  </div>
+                  {validationErrors.images && (
+                    <div className="editad-field__error">{validationErrors.images}</div>
+                  )}
+                </div>
+              </section>
+            </form>
+          </main>
         </div>
       </div>
     </div>
@@ -374,4 +484,3 @@ const EditAd = () => {
 };
 
 export default EditAd;
-

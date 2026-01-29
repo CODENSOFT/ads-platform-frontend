@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { getAds } from '../api/endpoints';
 import useCategories from '../hooks/useCategories';
 import AdCard from '../components/AdCard';
+import '../styles/ads.css';
 
 const SORT_OPTIONS = [
   { value: '-createdAt', label: 'Newest First' },
@@ -10,23 +11,18 @@ const SORT_OPTIONS = [
   { value: '-price', label: 'Price: High to Low' },
 ];
 
-// Helper to extract categoryId from ad
 const getAdCategoryId = (ad) => {
   const c = ad?.category;
   if (!c) return '';
-  // if category is ObjectId string
   if (typeof c === 'string') return c;
-  // if category is populated object
   if (typeof c === 'object') return String(c._id || c.id || '');
   return '';
 };
 
-// Helper to extract category slug from ad
 const getAdCategorySlug = (ad) => {
   const c = ad?.category;
   if (!c) return '';
   if (typeof c === 'object') return String(c.slug || c.name || '').toLowerCase().trim();
-  // if backend stores slug string directly (unlikely but handle it)
   if (typeof c === 'string') return '';
   return '';
 };
@@ -45,7 +41,6 @@ const AdsPage = () => {
     hasPrev: false,
   });
 
-  // Read filters from URL
   const categoryIdParam = (searchParams.get('categoryId') || '').trim();
   const categorySlugParam = (searchParams.get('category') || '').trim();
   const searchParam = (searchParams.get('search') || '').trim();
@@ -55,55 +50,41 @@ const AdsPage = () => {
   const minPrice = searchParams.get('minPrice') || '';
   const maxPrice = searchParams.get('maxPrice') || '';
 
-  // DEV logs
   if (import.meta.env.DEV) {
-    console.log('FILTER', { 
-      categoryIdParam, 
-      categorySlugParam, 
-      searchParam, 
-      sampleAd: allAds[0] 
+    console.log('FILTER', {
+      categoryIdParam,
+      categorySlugParam,
+      searchParam,
+      sampleAd: allAds[0],
     });
   }
 
-  // Fetch ads from API
   const fetchAds = useCallback(async () => {
     try {
       setLoading(true);
-      
-      // When filtering by category, fetch ALL ads for client-side filtering
-      // This ensures we get all ads from the category, not just one page
+
       const shouldFetchAll = categoryIdParam || categorySlugParam;
-      const fetchLimit = shouldFetchAll ? 10000 : limit; // Very large limit to get all ads when filtering
-      const fetchPage = shouldFetchAll ? 1 : page; // Always page 1 when fetching all
-      
+      const fetchLimit = shouldFetchAll ? 10000 : limit;
+      const fetchPage = shouldFetchAll ? 1 : page;
+
       const params = {
         page: fetchPage,
         limit: fetchLimit,
         sort,
       };
-      
-      // Try server-side filtering first (if API supports it)
-      // But we'll also do client-side filtering as fallback
-      if (categoryIdParam) {
-        params.categoryId = categoryIdParam;
-      }
+
+      if (categoryIdParam) params.categoryId = categoryIdParam;
       if (categorySlugParam) {
         params.category = categorySlugParam;
         params.categorySlug = categorySlugParam;
       }
-      if (searchParam) {
-        params.search = searchParam;
-      }
-      if (minPrice) {
-        params.minPrice = minPrice;
-      }
-      if (maxPrice) {
-        params.maxPrice = maxPrice;
-      }
+      if (searchParam) params.search = searchParam;
+      if (minPrice) params.minPrice = minPrice;
+      if (maxPrice) params.maxPrice = maxPrice;
 
       const response = await getAds(params);
       const data = response.data;
-      
+
       let adsArray = [];
       if (data?.ads && Array.isArray(data.ads)) {
         adsArray = data.ads;
@@ -114,7 +95,7 @@ const AdsPage = () => {
       }
 
       const fetchedAds = Array.isArray(adsArray) ? adsArray : [];
-      
+
       if (import.meta.env.DEV) {
         console.log('[AdsPage] Fetched ads:', {
           count: fetchedAds.length,
@@ -124,12 +105,9 @@ const AdsPage = () => {
           sampleAd: fetchedAds[0],
         });
       }
-      
-      // Store all fetched ads (DO NOT filter here)
+
       setAllAds(fetchedAds);
-      
-      // If we fetched all ads for filtering, pagination info might not be accurate
-      // So we'll calculate it from filtered results later
+
       const paginationData = data?.pagination || {};
       setPagination({
         page: shouldFetchAll ? 1 : (paginationData.page || page),
@@ -146,20 +124,16 @@ const AdsPage = () => {
     }
   }, [page, limit, sort, minPrice, maxPrice, categoryIdParam, categorySlugParam, searchParam]);
 
-  // Fetch ads when params change
   useEffect(() => {
     fetchAds();
   }, [fetchAds]);
 
-  // Filter ads based on query params (client-side fallback)
   useEffect(() => {
     let filtered = [...allAds];
 
-    // Prefer categoryId over slug
     if (categoryIdParam) {
       filtered = filtered.filter((ad) => {
         const adCategoryId = getAdCategoryId(ad);
-        // Also check categoryId field directly
         const directCategoryId = String(ad?.categoryId || '');
         return adCategoryId === categoryIdParam || directCategoryId === categoryIdParam;
       });
@@ -167,19 +141,18 @@ const AdsPage = () => {
       const slug = categorySlugParam.toLowerCase().trim();
       filtered = filtered.filter((ad) => {
         const adCategorySlug = getAdCategorySlug(ad);
-        // Also check categorySlug field directly
         const directCategorySlug = String(ad?.categorySlug || '').toLowerCase().trim();
-        // Also check if category name matches
         const categoryName = ad?.category?.name ? String(ad.category.name).toLowerCase().trim() : '';
-        return adCategorySlug === slug || 
-               directCategorySlug === slug || 
-               categoryName === slug ||
-               (adCategorySlug && adCategorySlug.includes(slug)) ||
-               (directCategorySlug && directCategorySlug.includes(slug));
+        return (
+          adCategorySlug === slug ||
+          directCategorySlug === slug ||
+          categoryName === slug ||
+          (adCategorySlug && adCategorySlug.includes(slug)) ||
+          (directCategorySlug && directCategorySlug.includes(slug))
+        );
       });
     }
 
-    // Filter by search (title contains query)
     if (searchParam) {
       const query = searchParam.toLowerCase();
       filtered = filtered.filter((ad) => {
@@ -188,16 +161,15 @@ const AdsPage = () => {
       });
     }
 
-    // Update pagination total based on filtered results
     if (categoryIdParam || categorySlugParam || searchParam) {
-      setPagination(prev => ({
+      setPagination((prev) => ({
         ...prev,
         total: filtered.length,
       }));
     }
 
     setVisibleAds(filtered);
-    
+
     if (import.meta.env.DEV) {
       console.log('[AdsPage] Filtering:', {
         totalAds: allAds.length,
@@ -205,13 +177,6 @@ const AdsPage = () => {
         categoryIdParam,
         categorySlugParam,
         searchParam,
-        sampleAd: allAds[0] ? {
-          category: allAds[0].category,
-          categoryId: allAds[0].categoryId,
-          categorySlug: allAds[0].categorySlug,
-          extractedId: getAdCategoryId(allAds[0]),
-          extractedSlug: getAdCategorySlug(allAds[0]),
-        } : null,
       });
     }
   }, [allAds, categoryIdParam, categorySlugParam, searchParam]);
@@ -223,7 +188,7 @@ const AdsPage = () => {
     } else {
       newParams.delete(key);
     }
-    newParams.delete('page'); // Reset to page 1 on filter change
+    newParams.delete('page');
     setSearchParams(newParams);
   };
 
@@ -250,81 +215,99 @@ const AdsPage = () => {
     setSearchParams(newParams);
   };
 
-  // Find selected category name from categories list
-  const selectedCategory = categoryIdParam 
-    ? categories.find(c => (c._id || c.id) === categoryIdParam)
-    : categorySlugParam
-    ? categories.find(c => (c.slug || '').toLowerCase() === categorySlugParam.toLowerCase())
-    : null;
+  const selectedCategory =
+    categoryIdParam
+      ? categories.find((c) => (c._id || c.id) === categoryIdParam)
+      : categorySlugParam
+        ? categories.find((c) => (c.slug || '').toLowerCase() === categorySlugParam.toLowerCase())
+        : null;
   const selectedCategoryName = selectedCategory?.name || selectedCategory?.label || null;
 
+  const hasActiveFilters = categoryIdParam || categorySlugParam || searchParam;
+
   return (
-    <div className="page">
-      <div className="container">
-        {/* Premium Header with Filters */}
-        <div className="page-header">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="page-header__title">
-                {selectedCategoryName || 'All Ads'}
-              </h1>
-              <p className="page-header__subtitle">
-                {visibleAds.length} {visibleAds.length === 1 ? 'result' : 'results'}
-              </p>
-            </div>
+    <div className="ads-page">
+      <div className="ads-container">
+        <header className="ads-header">
+          <div className="ads-header__left">
+            <h1 className="ads-title">{selectedCategoryName || 'All Ads'}</h1>
+            <p className="ads-subtitle">
+              {visibleAds.length} {visibleAds.length === 1 ? 'result' : 'results'}
+            </p>
           </div>
+          <div className="ads-header__sort">
+            <label className="filter-label" htmlFor="ads-sort">
+              Sort
+            </label>
+            <select
+              id="ads-sort"
+              value={sort}
+              onChange={(e) => handleFilterChange('sort', e.target.value)}
+              className="field-input"
+            >
+              {SORT_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </header>
 
-          {/* Filter Pills */}
-          {(categoryIdParam || categorySlugParam || searchParam) && (
-            <div className="flex items-center gap-2 flex-wrap mb-6">
-              {(categoryIdParam || categorySlugParam) && (
-                <span className="pill">
-                  Category: {selectedCategoryName || categorySlugParam || categoryIdParam}
-                  <button
-                    type="button"
-                    onClick={clearCategory}
-                    className="pill-x"
-                    aria-label="Clear category"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
-              {searchParam && (
-                <span className="pill">
-                  Search: "{searchParam}"
-                  <button
-                    type="button"
-                    onClick={clearSearch}
-                    className="pill-x"
-                    aria-label="Clear search"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
-              <button className="btn btn-secondary btn-sm" onClick={clearAll}>
-                Clear all
-              </button>
-            </div>
-          )}
-        </div>
+        {hasActiveFilters && (
+          <div className="ads-chips">
+            {(categoryIdParam || categorySlugParam) && (
+              <span className="ads-chip">
+                Category: {selectedCategoryName || categorySlugParam || categoryIdParam}
+                <button
+                  type="button"
+                  onClick={clearCategory}
+                  className="ads-chip-x"
+                  aria-label="Clear category"
+                >
+                  ×
+                </button>
+              </span>
+            )}
+            {searchParam && (
+              <span className="ads-chip">
+                Search: &quot;{searchParam}&quot;
+                <button
+                  type="button"
+                  onClick={clearSearch}
+                  className="ads-chip-x"
+                  aria-label="Clear search"
+                >
+                  ×
+                </button>
+              </span>
+            )}
+            <button type="button" className="ads-chips-clear" onClick={clearAll}>
+              Clear all
+            </button>
+          </div>
+        )}
 
-        {/* Main Content */}
         <div className="ads-layout">
-          {/* Filters Sidebar */}
-          <div className="ads-sidebar card card--pad">
-            <h3 className="t-h3 mb-6">Filters</h3>
+          <aside className="ads-sidebar">
+            <div className="filter-card">
+              <h2 className="filter-title">Filters</h2>
 
-            <div className="flex flex-col gap-6">
-              <div>
-                <label className="t-small t-bold mb-2 block">Category</label>
+              <div className="filter-group">
+                <label className="filter-label" htmlFor="ads-category">
+                  Category
+                </label>
                 <select
+                  id="ads-category"
                   value={categoryIdParam || categorySlugParam || ''}
                   onChange={(e) => {
                     const value = e.target.value;
                     if (value) {
-                      const selectedCat = categories.find(c => (c._id || c.id) === value || (c.slug || '').toLowerCase() === value.toLowerCase());
+                      const selectedCat = categories.find(
+                        (c) =>
+                          (c._id || c.id) === value ||
+                          (c.slug || '').toLowerCase() === value.toLowerCase()
+                      );
                       if (selectedCat) {
                         const catId = selectedCat._id || selectedCat.id || '';
                         const catSlug = (selectedCat.slug || '').trim();
@@ -345,10 +328,10 @@ const AdsPage = () => {
                       clearCategory();
                     }
                   }}
-                  className="input"
+                  className="field-input"
                 >
                   <option value="">All Categories</option>
-                  {categories.map(cat => {
+                  {categories.map((cat) => {
                     const catId = cat._id || cat.id || '';
                     const catSlug = (cat.slug || '').trim();
                     const value = catId || catSlug;
@@ -361,89 +344,102 @@ const AdsPage = () => {
                 </select>
               </div>
 
-              <div>
-                <label className="t-small t-bold mb-2 block">Price Range</label>
-                <div className="flex gap-2">
+              <div className="filter-group">
+                <label className="filter-label" htmlFor="ads-min-price">
+                  Price Range
+                </label>
+                <div className="filter-row-2">
                   <input
+                    id="ads-min-price"
                     type="number"
                     placeholder="Min"
                     value={minPrice}
                     onChange={(e) => handleFilterChange('minPrice', e.target.value)}
-                    className="input"
+                    className="field-input"
                   />
                   <input
+                    id="ads-max-price"
                     type="number"
                     placeholder="Max"
                     value={maxPrice}
                     onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
-                    className="input"
+                    className="field-input"
                   />
                 </div>
               </div>
-
-              <div>
-                <label className="t-small t-bold mb-2 block">Sort By</label>
-                <select
-                  value={sort}
-                  onChange={(e) => handleFilterChange('sort', e.target.value)}
-                  className="input"
-                >
-                  {SORT_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              </div>
             </div>
-          </div>
+          </aside>
 
-          {/* Ads Grid */}
-          <div>
+          <main className="ads-main">
             {loading ? (
-              <div className="grid grid-3">
+              <div className="ads-grid">
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="card card--pad" style={{ height: 320, background: 'var(--surface-2)' }} />
+                  <div key={i} className="skeleton-card">
+                    <div className="skeleton-image" />
+                    <div className="skeleton-body">
+                      <div className="skeleton-line" />
+                      <div className="skeleton-line" />
+                      <div className="skeleton-line" />
+                    </div>
+                  </div>
                 ))}
               </div>
             ) : visibleAds.length === 0 ? (
-              <div className="card card--pad text-center py-6">
-                <h3 className="t-h3 mb-2">No listings found</h3>
-                <p className="t-body t-muted mb-4">
-                  {(categoryIdParam || categorySlugParam || searchParam)
+              <div className="ads-empty">
+                <div className="ads-empty__icon" aria-hidden>
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <path d="M3 9h18M9 21V9" />
+                  </svg>
+                </div>
+                <h3 className="ads-empty__title">No listings found</h3>
+                <p className="ads-empty__text">
+                  {hasActiveFilters
                     ? 'No listings found for this filter. Try adjusting your filters or search.'
-                    : 'No ads available at the moment.'
-                  }
+                    : 'No ads available at the moment.'}
                 </p>
-                {(categoryIdParam || categorySlugParam || searchParam) && (
-                  <button className="btn btn-secondary" onClick={clearAll}>
+                {hasActiveFilters && (
+                  <button type="button" className="btn btn-secondary" onClick={clearAll}>
                     Clear all filters
                   </button>
                 )}
               </div>
             ) : (
               <>
-                <div className="grid grid-3">
-                  {visibleAds.map(ad => (
+                <div className="ads-grid">
+                  {visibleAds.map((ad) => (
                     <AdCard key={ad._id || ad.id} ad={ad} showFavoriteButton={true} />
                   ))}
                 </div>
 
-                {/* Pagination */}
                 {pagination.pages > 1 && (
-                  <div className="flex items-center justify-center gap-4 mt-8">
+                  <div className="ads-pagination">
                     <button
+                      type="button"
                       onClick={() => handlePageChange(page - 1)}
                       disabled={!pagination.hasPrev || loading}
-                      className="btn btn-secondary"
+                      className="ads-pagination__btn"
                     >
                       Previous
                     </button>
-                    <span className="t-body t-bold">
-                      Page {page} of {pagination.pages}
+                    <span className="ads-pagination__pill" aria-current="page">
+                      {page}
+                    </span>
+                    <span className="ads-pagination__label">
+                      of {pagination.pages}
                     </span>
                     <button
+                      type="button"
                       onClick={() => handlePageChange(page + 1)}
                       disabled={!pagination.hasNext || loading}
-                      className="btn btn-secondary"
+                      className="ads-pagination__btn"
                     >
                       Next
                     </button>
@@ -451,31 +447,9 @@ const AdsPage = () => {
                 )}
               </>
             )}
-          </div>
+          </main>
         </div>
       </div>
-
-      <style>{`
-        .ads-layout {
-          display: grid;
-          grid-template-columns: 280px 1fr;
-          gap: 32px;
-          align-items: start;
-        }
-        .ads-sidebar {
-          position: sticky;
-          top: 24px;
-        }
-        @media (max-width: 1024px) {
-          .ads-layout {
-            grid-template-columns: 1fr;
-          }
-          .ads-sidebar {
-            position: static;
-            margin-bottom: 24px;
-          }
-        }
-      `}</style>
     </div>
   );
 };

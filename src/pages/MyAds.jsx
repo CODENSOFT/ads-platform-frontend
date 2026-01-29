@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { getMyAds, updateAdStatus, deleteAd } from '../api/endpoints';
 import { useToast } from '../hooks/useToast';
 import { parseError } from '../utils/errorParser';
+import '../styles/my-ads.css';
 
 const MyAds = () => {
   const navigate = useNavigate();
@@ -14,7 +15,6 @@ const MyAds = () => {
   const [errorById, setErrorById] = useState({});
   const [validationErrorsById, setValidationErrorsById] = useState({});
 
-  // Helper: Set loading state for a specific ad
   const setAdLoading = useCallback((adId, isLoading) => {
     setLoadingById((prev) => ({
       ...prev,
@@ -22,7 +22,6 @@ const MyAds = () => {
     }));
   }, []);
 
-  // Helper: Set error for a specific ad
   const setAdError = useCallback((adId, message) => {
     setErrorById((prev) => {
       if (message === null) {
@@ -34,15 +33,11 @@ const MyAds = () => {
     });
   }, []);
 
-
-  // Fetch ads from API
   const fetchMyAds = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const response = await getMyAds();
-      
-      // Extract list exactly from res.data.ads
       const adsArray = response.data?.ads || [];
       setAds(Array.isArray(adsArray) ? adsArray : []);
     } catch (err) {
@@ -58,19 +53,12 @@ const MyAds = () => {
   }, [fetchMyAds]);
 
   const handleStatusUpdate = async (adId, newStatus) => {
-    // Clear any previous error for this ad
     setAdError(adId, null);
-    
-    // Set loading state
     setAdLoading(adId, true);
 
     try {
       await updateAdStatus(adId, newStatus);
-      
-      // Refetch my ads from backend as source of truth
       await fetchMyAds();
-      
-      // Clear error on success
       setAdError(adId, null);
       const statusMessages = {
         active: 'Ad published',
@@ -83,7 +71,6 @@ const MyAds = () => {
       setAdError(adId, errorMsg);
       showError(errorMsg);
     } finally {
-      // Set loading false
       setAdLoading(adId, false);
     }
   };
@@ -97,7 +84,6 @@ const MyAds = () => {
   const validateEditForm = (adId, formData) => {
     const errors = {};
 
-    // Title: required, min 3 chars
     const titleTrimmed = formData.title?.trim() || '';
     if (!titleTrimmed) {
       errors.title = 'Title is required';
@@ -105,7 +91,6 @@ const MyAds = () => {
       errors.title = 'Title must be at least 3 characters';
     }
 
-    // Description: required, min 20 chars
     const descriptionTrimmed = formData.description?.trim() || '';
     if (!descriptionTrimmed) {
       errors.description = 'Description is required';
@@ -113,13 +98,11 @@ const MyAds = () => {
       errors.description = 'Description must be at least 20 characters';
     }
 
-    // Price: must be a finite number > 0
     const priceNum = Number(formData.price);
     if (!formData.price || !isFinite(priceNum) || priceNum <= 0) {
       errors.price = 'Price must be a number greater than 0';
     }
 
-    // Currency: must be one of ["EUR","USD","MDL"]
     const validCurrencies = ['EUR', 'USD', 'MDL'];
     if (!formData.currency || !validCurrencies.includes(formData.currency)) {
       errors.currency = 'Currency must be EUR, USD, or MDL';
@@ -134,23 +117,16 @@ const MyAds = () => {
   };
 
   const handleDelete = async (adId) => {
-    // Show confirmation dialog
     if (!window.confirm('Delete this ad?')) {
       return;
     }
 
-    // Clear any previous error for this ad
     setAdError(adId, null);
-    
-    // Set loading state
     setAdLoading(adId, true);
 
     try {
       await deleteAd(adId);
-      
-      // Refetch my ads from backend as source of truth
       await fetchMyAds();
-      
       setValidationErrorsById((prev) => {
         const updated = { ...prev };
         delete updated[adId];
@@ -163,395 +139,188 @@ const MyAds = () => {
       setAdError(adId, errorMsg);
       showError(errorMsg);
     } finally {
-      // Set loading false
       setAdLoading(adId, false);
     }
   };
 
-  // Calculate counts
   const total = ads.length;
   const draftCount = ads.filter((ad) => ad.status === 'draft').length;
   const activeCount = ads.filter((ad) => ad.status === 'active').length;
 
+  const getStatusBadgeClass = (status) => {
+    if (status === 'active') return 'badge badge--active';
+    if (status === 'sold') return 'badge badge--sold';
+    return 'badge badge--draft';
+  };
+
   return (
-    <div className="page-container">
+    <div className="page">
       <div className="container">
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
-          marginBottom: '32px',
-          flexWrap: 'wrap',
-          gap: '16px',
-        }}>
+        <header className="page-header page-header--row">
           <div>
-            <h1 style={{ 
-              fontSize: '2.5rem', 
-              fontWeight: '700', 
-              color: '#1a1a1a',
-              marginBottom: '8px',
-            }}>
-              📋 My Ads
-            </h1>
-            {!loading && ads.length > 0 && (
-              <p style={{ 
-                fontSize: '1.1rem', 
-                color: '#666',
-                margin: 0,
-              }}>
-                Manage your ads and track their status
-              </p>
-            )}
+            <h1 className="page-header__title">My Ads</h1>
+            <p className="page-header__subtitle">
+              Manage your ads and track their status
+            </p>
           </div>
-          {!loading && (
+          <div className="page-header__actions">
             <button
+              type="button"
+              className="btn btn-secondary"
               onClick={fetchMyAds}
               disabled={loading}
-              className="btn-secondary"
-              style={{
-                padding: '10px 20px',
-                fontSize: '14px',
-                fontWeight: '500',
-              }}
+              aria-label="Refresh"
             >
-              {loading ? 'Reloading...' : '🔄 Refresh'}
+              {loading ? 'Reloading…' : 'Refresh'}
             </button>
-          )}
-        </div>
+          </div>
+        </header>
 
         {loading && (
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '60px 20px',
-            color: '#666',
-            fontSize: '18px',
-          }}>
-            Loading your ads...
+          <div className="card card--pad text-center py-6">
+            <div className="t-body t-muted">Loading your ads...</div>
           </div>
         )}
-        
+
         {error && (
-          <div className="card" style={{
-            backgroundColor: '#fff5f5',
-            border: '1px solid #fed7d7',
-            marginBottom: '24px',
-          }}>
-            <div style={{ 
-              color: '#c53030', 
-              fontSize: '16px',
-              fontWeight: '500',
-            }}>
-              {error}
-            </div>
+          <div className="alert alert--danger" role="alert">
+            {error}
           </div>
         )}
 
         {!loading && !error && (
           <>
             {ads.length === 0 ? (
-              <div className="card" style={{ 
-                textAlign: 'center', 
-                padding: '60px 20px',
-              }}>
-                <div style={{ fontSize: '48px', marginBottom: '16px' }}>📋</div>
-                <h3 style={{ 
-                  color: '#1a1a1a', 
-                  marginBottom: '8px',
-                  fontSize: '1.5rem',
-                  fontWeight: '600',
-                }}>
-                  No ads yet
-                </h3>
-                <p style={{ color: '#666', fontSize: '16px', marginBottom: '24px' }}>
+              <div className="myads-empty card">
+                <div className="myads-empty__icon" aria-hidden="true">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                    <line x1="3" y1="9" x2="21" y2="9" />
+                    <line x1="9" y1="21" x2="9" y2="9" />
+                  </svg>
+                </div>
+                <h2 className="myads-empty__title">No ads yet</h2>
+                <p className="myads-empty__text">
                   Create your first ad to get started
                 </p>
-                <a
-                  href="/#/create"
-                  className="btn-primary"
-                  style={{
-                    display: 'inline-block',
-                    padding: '12px 24px',
-                    fontSize: '16px',
-                    fontWeight: '600',
-                    textDecoration: 'none',
-                  }}
-                >
-                  ➕ Create Ad
+                <a href="/#/create" className="btn btn-primary myads-empty__cta">
+                  Create Ad
                 </a>
               </div>
             ) : (
               <>
-                <div className="card" style={{ 
-                  marginBottom: '24px',
-                  padding: '20px',
-                }}>
-                  <div style={{ 
-                    display: 'flex', 
-                    gap: '32px', 
-                    flexWrap: 'wrap',
-                  }}>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                    }}>
-                      <span style={{ color: '#666', fontSize: '14px', fontWeight: '500' }}>Total:</span>
-                      <span style={{ 
-                        fontSize: '20px', 
-                        fontWeight: '700',
-                        color: '#1a1a1a',
-                      }}>
-                        {total}
-                      </span>
+                <div className="stats-grid">
+                  <div className="stat-card">
+                    <div className="stat-card__label">Total</div>
+                    <div className="stat-card__value">{total}</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-card__label">Draft</div>
+                    <div className={`stat-card__value ${draftCount === 0 ? 'stat-card__value--muted' : ''}`}>
+                      {draftCount}
                     </div>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                    }}>
-                      <span style={{ color: '#666', fontSize: '14px', fontWeight: '500' }}>Draft:</span>
-                      <span style={{ 
-                        fontSize: '20px', 
-                        fontWeight: '700',
-                        color: '#6c757d',
-                      }}>
-                        {draftCount}
-                      </span>
-                    </div>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                    }}>
-                      <span style={{ color: '#666', fontSize: '14px', fontWeight: '500' }}>Active:</span>
-                      <span style={{ 
-                        fontSize: '20px', 
-                        fontWeight: '700',
-                        color: '#28a745',
-                      }}>
-                        {activeCount}
-                      </span>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-card__label">Active</div>
+                    <div className={`stat-card__value ${activeCount > 0 ? 'stat-card__value--success' : 'stat-card__value--muted'}`}>
+                      {activeCount}
                     </div>
                   </div>
                 </div>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-                  gap: '24px',
-                  marginBottom: '32px',
-                }}>
-                {ads.map((ad) => {
-                  const adId = ad._id || ad.id;
-                  const isUpdating = loadingById[adId] || false;
-                  const adError = errorById[adId];
-                  const isEditing = false;
-                  const editFormData = {};
-                  const validationErrors = {};
-                  const coverImage = ad.images && ad.images[0] ? ad.images[0] : null;
-                  const canEdit = ad.status === 'draft' || ad.status === 'active';
 
-                  return (
-                    <div
-                      key={adId}
-                      className="card"
-                      style={{
-                        padding: 0,
-                        overflow: 'hidden',
-                      }}
-                    >
-                      {!isEditing ? (
-                        <>
-                          {coverImage && (
-                            <div style={{
-                              width: '100%',
-                              aspectRatio: '16/9',
-                              overflow: 'hidden',
-                              backgroundColor: '#f8f9fa',
-                            }}>
-                              <img
-                                src={coverImage}
-                                alt={ad.title}
-                                style={{
-                                  width: '100%',
-                                  height: '100%',
-                                  objectFit: 'cover',
-                                }}
-                              />
+                <div className="ads-grid">
+                  {ads.map((ad) => {
+                    const adId = ad._id || ad.id;
+                    const isUpdating = loadingById[adId] || false;
+                    const adError = errorById[adId];
+                    const coverImage = ad.images && ad.images[0] ? ad.images[0] : null;
+                    const canEdit = ad.status === 'draft' || ad.status === 'active';
+
+                    return (
+                      <article key={adId} className="ad-manage-card card">
+                        <div className="ad-manage-card__media">
+                          {coverImage ? (
+                            <img src={coverImage} alt={ad.title || 'Ad'} />
+                          ) : (
+                            <div className="ad-manage-card__media-placeholder" aria-hidden="true">
+                              No image
                             </div>
                           )}
-                          <div style={{ padding: '16px' }}>
-                            <h3 style={{ 
-                              margin: '0 0 12px 0', 
-                              fontSize: '18px',
-                              fontWeight: '600',
-                              color: '#1a1a1a',
-                              lineHeight: '1.3',
-                              display: '-webkit-box',
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: 'vertical',
-                              overflow: 'hidden',
-                            }}>
-                              {ad.title}
-                            </h3>
-                            <div style={{ 
-                              marginBottom: '12px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '8px',
-                              flexWrap: 'wrap',
-                            }}>
-                              <div style={{ 
-                                fontSize: '22px', 
-                                fontWeight: '700',
-                                color: '#007bff',
-                              }}>
-                                {ad.price} {ad.currency}
-                              </div>
-                              {ad.status && (
-                                <div style={{
-                                  display: 'inline-block',
-                                  padding: '4px 10px',
-                                  backgroundColor: ad.status === 'active' ? '#d4edda' : ad.status === 'sold' ? '#f8d7da' : ad.status === 'draft' ? '#e2e3e5' : '#e2e3e5',
-                                  color: ad.status === 'active' ? '#155724' : ad.status === 'sold' ? '#721c24' : '#383d41',
-                                  borderRadius: '12px',
-                                  fontSize: '11px',
-                                  fontWeight: '600',
-                                  textTransform: 'uppercase',
-                                }}>
-                                  {ad.status}
-                                </div>
-                              )}
-                            </div>
-                            {ad.description && (
-                              <div style={{ 
-                                marginBottom: '16px', 
-                                fontSize: '14px', 
-                                color: '#666',
-                                lineHeight: '1.5',
-                                display: '-webkit-box',
-                                WebkitLineClamp: 3,
-                                WebkitBoxOrient: 'vertical',
-                                overflow: 'hidden',
-                              }}>
-                                {ad.description}
-                              </div>
-                            )}
-                            <div style={{ 
-                              marginTop: '16px', 
-                              display: 'flex', 
-                              gap: '8px', 
-                              flexWrap: 'wrap' 
-                            }}>
-                            {canEdit && (
-                              <button
-                                onClick={() => handleEditClick(ad)}
-                                disabled={isUpdating}
-                                className="btn-primary"
-                                style={{
-                                  flex: 1,
-                                  padding: '10px',
-                                  fontSize: '14px',
-                                  fontWeight: '500',
-                                  opacity: isUpdating ? 0.6 : 1,
-                                  cursor: isUpdating ? 'not-allowed' : 'pointer',
-                                }}
-                              >
-                                ✏️ Edit
-                              </button>
-                            )}
-                            {ad.status === 'draft' && (
-                              <button
-                                onClick={() => handleStatusUpdate(adId, 'active')}
-                                disabled={isUpdating}
-                                className="btn-success"
-                                style={{
-                                  flex: 1,
-                                  padding: '10px',
-                                  fontSize: '14px',
-                                  fontWeight: '500',
-                                  opacity: isUpdating ? 0.6 : 1,
-                                  cursor: isUpdating ? 'not-allowed' : 'pointer',
-                                }}
-                              >
-                                {isUpdating ? 'Publishing...' : '📢 Publish'}
-                              </button>
-                            )}
-                            {ad.status === 'active' && (
-                              <button
-                                onClick={() => handleStatusUpdate(adId, 'sold')}
-                                disabled={isUpdating}
-                                style={{
-                                  flex: 1,
-                                  padding: '10px',
-                                  fontSize: '14px',
-                                  fontWeight: '500',
-                                  backgroundColor: isUpdating ? '#ccc' : '#ffc107',
-                                  color: 'white',
-                                  border: 'none',
-                                  borderRadius: '6px',
-                                  opacity: isUpdating ? 0.6 : 1,
-                                  cursor: isUpdating ? 'not-allowed' : 'pointer',
-                                }}
-                              >
-                                {isUpdating ? 'Updating...' : '✅ Mark sold'}
-                              </button>
-                            )}
-                            {ad.status === 'sold' && (
-                              <div style={{ 
-                                flex: 1,
-                                padding: '10px',
-                                fontSize: '14px',
-                                color: '#666',
-                                textAlign: 'center',
-                                backgroundColor: '#f8f9fa',
-                                borderRadius: '6px',
-                              }}>
-                                ✓ Sold
-                              </div>
-                            )}
-                            {(ad.status === 'draft' || ad.status === 'active' || ad.status === 'sold') && (
-                              <button
-                                onClick={() => handleDelete(adId)}
-                                disabled={isUpdating}
-                                className="btn-danger"
-                                style={{
-                                  flex: 1,
-                                  padding: '10px',
-                                  fontSize: '14px',
-                                  fontWeight: '500',
-                                  opacity: isUpdating ? 0.6 : 1,
-                                  cursor: isUpdating ? 'not-allowed' : 'pointer',
-                                }}
-                              >
-                                {isUpdating ? 'Deleting...' : '🗑️ Delete'}
-                              </button>
-                            )}
-                            </div>
-                            {adError && (
-                              <div style={{
-                                color: '#c53030',
-                                fontSize: '12px',
-                                marginTop: '12px',
-                                padding: '8px',
-                                backgroundColor: '#fff5f5',
-                                borderRadius: '6px',
-                                border: '1px solid #fed7d7',
-                                whiteSpace: 'pre-line',
-                              }}>
-                                {adError}
-                              </div>
+                        </div>
+                        <div className="ad-manage-card__body">
+                          <h3 className="ad-manage-card__title">{ad.title}</h3>
+                          <div className="ad-manage-card__meta">
+                            <span className="price">
+                              {ad.price} {ad.currency}
+                            </span>
+                            {ad.status && (
+                              <span className={getStatusBadgeClass(ad.status)}>
+                                {ad.status}
+                              </span>
                             )}
                           </div>
-                        </>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          )}
-        </>
-      )}
+                          {ad.description && (
+                            <p className="desc">{ad.description}</p>
+                          )}
+                        </div>
+                        <div className="ad-manage-card__actions">
+                          {canEdit && (
+                            <button
+                              type="button"
+                              className="btn btn-primary-outline"
+                              onClick={() => handleEditClick(ad)}
+                              disabled={isUpdating}
+                            >
+                              Edit
+                            </button>
+                          )}
+                          {ad.status === 'draft' && (
+                            <button
+                              type="button"
+                              className="btn btn-primary"
+                              onClick={() => handleStatusUpdate(adId, 'active')}
+                              disabled={isUpdating}
+                            >
+                              {isUpdating ? 'Publishing…' : 'Publish'}
+                            </button>
+                          )}
+                          {ad.status === 'active' && (
+                            <button
+                              type="button"
+                              className="btn btn-warning"
+                              onClick={() => handleStatusUpdate(adId, 'sold')}
+                              disabled={isUpdating}
+                            >
+                              {isUpdating ? 'Updating…' : 'Mark sold'}
+                            </button>
+                          )}
+                          {ad.status === 'sold' && (
+                            <span className="ad-manage-card__sold-label">Sold</span>
+                          )}
+                          {(ad.status === 'draft' || ad.status === 'active' || ad.status === 'sold') && (
+                            <button
+                              type="button"
+                              className="btn btn-danger-outline"
+                              onClick={() => handleDelete(adId)}
+                              disabled={isUpdating}
+                            >
+                              {isUpdating ? 'Deleting…' : 'Delete'}
+                            </button>
+                          )}
+                        </div>
+                        {adError && (
+                          <div className="alert alert--danger alert--sm" role="alert">
+                            {adError}
+                          </div>
+                        )}
+                      </article>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

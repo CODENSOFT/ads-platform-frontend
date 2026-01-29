@@ -1,0 +1,141 @@
+/* Premium Favorites page – white + blue design system */
+
+.fav-header {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.fav-title {
+  font-size: 28px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.fav-subtitle {
+  color: rgba(15, 23, 42, 0.65);
+  margin-top: 6px;
+  font-size: 15px;
+}
+
+.fav-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.fav-pill {
+  background: rgba(37, 99, 235, 0.08);
+  color: #1d4ed8;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.fav-header .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Grid */
+.fav-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+@media (min-width: 1200px) {
+  .fav-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1024px) {
+  .fav-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .fav-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Skeleton cards */
+.fav-skeleton-card {
+  height: 320px;
+  border-radius: 16px;
+  background: linear-gradient(
+    90deg,
+    rgba(15, 23, 42, 0.06),
+    rgba(15, 23, 42, 0.1),
+    rgba(15, 23, 42, 0.06)
+  );
+  background-size: 200% 100%;
+  animation: fav-shimmer 1.2s infinite;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+@keyframes fav-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Empty state card */
+.fav-empty {
+  text-align: center;
+  padding: 56px 20px;
+  border-radius: 18px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+
+.fav-empty-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  margin: 0 auto 14px;
+  display: grid;
+  place-items: center;
+  background: rgba(37, 99, 235, 0.1);
+  color: #1d4ed8;
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.fav-empty-icon svg {
+  display: block;
+}
+
+.fav-empty-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 6px 0;
+}
+
+.fav-empty-text {
+  color: rgba(15, 23, 42, 0.65);
+  margin: 0 0 16px 0;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.fav-empty .btn-primary {
+  min-width: 160px;
+}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getChats } from '../api/chat';
 import { deleteChat } from '../api/chatApi';
@@ -6,6 +6,48 @@ import { useToast } from '../hooks/useToast';
 import { parseError } from '../utils/errorParser';
 import { useAuth } from '../auth/useAuth.js';
 import { useUnread } from '../context/UnreadContext.jsx';
+import '../styles/chats.css';
+
+const THROTTLE_MS = 10000;
+
+const getMyId = (user) => String(user?._id || user?.id || '').trim();
+
+const getParticipantId = (p) => {
+  if (p != null && typeof p === 'object') return String(p._id || p.id || '');
+  return String(p);
+};
+
+const getParticipantName = (p) => {
+  if (p != null && typeof p === 'object') return p.name || p.email || 'User';
+  return 'User';
+};
+
+const getOtherParticipant = (chat, myId) => {
+  const participants = chat?.participants;
+  if (!participants || !Array.isArray(participants)) return null;
+  const other = participants.find((p) => getParticipantId(p) !== myId);
+  return other !== undefined ? other : participants[0] || null;
+};
+
+const getLastMessageText = (chat) => {
+  const lm = chat?.lastMessage;
+  if (lm != null && typeof lm === 'object' && typeof lm.text === 'string') return lm.text;
+  if (typeof lm === 'string') return 'Open conversation…';
+  return '';
+};
+
+const getChatUnreadCount = (chat) => Number(chat?.unreadCount || 0);
+
+const formatBadge = (count) => {
+  if (count == null || count === 0) return null;
+  return count > 99 ? '99+' : String(count);
+};
+
+const getAdTitle = (chat) => {
+  const ad = chat?.ad;
+  if (ad != null && typeof ad === 'object') return ad.title || '';
+  return '';
+};
 
 const Chats = () => {
   const navigate = useNavigate();
@@ -16,102 +58,73 @@ const Chats = () => {
   const [loading, setLoading] = useState(true);
   const [chats, setChats] = useState([]);
   const [deletingChatId, setDeletingChatId] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const isFetchingRef = useRef(false);
+  const lastFetchAtRef = useRef(0);
 
-  useEffect(() => {
-    // HARD GUARD: Redirect to login if no token/user
+  const fetchChatsSafe = useCallback(() => {
     const token = localStorage.getItem('token');
     if (!token || !user) {
       navigate('/login');
       return;
     }
+    if (isFetchingRef.current) return;
+    if (Date.now() - lastFetchAtRef.current < THROTTLE_MS) return;
 
-    const fetchChats = async () => {
-      try {
-        setLoading(true);
-        const response = await getChats();
-        
-        // Check if request was skipped (no token)
+    isFetchingRef.current = true;
+    setLoading(true);
+    getChats()
+      .then((response) => {
         if (response.data?.skipped) {
           navigate('/login');
           return;
         }
-        
-        // API returns: { success, chats: [...], totalUnread }
         const chatsData = response.data?.chats || [];
-        const totalUnreadCount = response.data?.totalUnread || 0;
-        
+        const totalUnreadCount = response.data?.totalUnread ?? 0;
         setChats(Array.isArray(chatsData) ? chatsData : []);
-        
-        // Update totalUnread in context
         setTotalUnread(totalUnreadCount);
-      } catch (err) {
-        // Never log 429 errors
-        if (err?.response?.status === 429) {
-          setLoading(false);
+      })
+      .catch((err) => {
+        if (err?.response?.status === 429 || err?.response?.status === 401) {
+          if (err?.response?.status === 401) navigate('/login');
           return;
         }
-        // Handle 401 - redirect to login
-        if (err?.response?.status === 401) {
-          navigate('/login');
-          return;
-        }
-        const errorMessage = parseError(err);
-        showError(errorMessage);
-      } finally {
+        showError(parseError(err));
+      })
+      .finally(() => {
+        isFetchingRef.current = false;
         setLoading(false);
-      }
-    };
+        lastFetchAtRef.current = Date.now();
+      });
+  }, [user, navigate, setTotalUnread, showError]);
 
-    fetchChats();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]); // Only depend on user to prevent refetch loops
-
-  // Refetch when navigating back to /chats (e.g., from ChatDetail) - throttled
   useEffect(() => {
-    // HARD GUARD: Do NOT call API if token/user is missing
     const token = localStorage.getItem('token');
     if (!token || !user) {
+      navigate('/login');
       return;
     }
+    fetchChatsSafe();
+  }, [user, navigate, fetchChatsSafe]);
 
-    if (location.pathname === '/chats' || location.hash === '#/chats') {
-      // Guard: Don't refetch if already loading
-      if (loading) {
-        return;
-      }
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token || !user) return;
+    const onChats = location.pathname === '/chats' || location.hash === '#/chats';
+    if (onChats) fetchChatsSafe();
+  }, [location.pathname, location.hash, user, fetchChatsSafe]);
 
-      const fetchChats = async () => {
-        try {
-          const response = await getChats();
-          if (response.data?.skipped) {
-            return;
-          }
-          const chatsData = response.data?.chats || [];
-          const totalUnreadCount = response.data?.totalUnread || 0;
-          
-          setChats(Array.isArray(chatsData) ? chatsData : []);
-          setTotalUnread(totalUnreadCount);
-        } catch (err) {
-          // Silent fail - never log 429
-          if (err?.response?.status === 429) {
-            return;
-          }
-          // Handle 401 silently
-          if (err?.response?.status === 401) {
-            return;
-          }
-        }
-      };
-      fetchChats();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname, location.hash, user]); // Only depend on location and user
-
-  const getOtherParticipant = (chat) => {
-    if (!chat.participants || !Array.isArray(chat.participants)) return null;
-    const other = chat.participants.find(p => p._id !== user?._id);
-    return other || chat.participants[0] || null;
-  };
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState !== 'visible') return;
+      const token = localStorage.getItem('token');
+      if (!token || !user) return;
+      const onChats = location.pathname === '/chats' || location.hash === '#/chats';
+      if (onChats) fetchChatsSafe();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [user, location.pathname, location.hash, fetchChatsSafe]);
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
@@ -122,12 +135,10 @@ const Chats = () => {
       const diffMins = Math.floor(diffMs / 60000);
       const diffHours = Math.floor(diffMs / 3600000);
       const diffDays = Math.floor(diffMs / 86400000);
-
       if (diffMins < 1) return 'Just now';
       if (diffMins < 60) return `${diffMins}m ago`;
       if (diffHours < 24) return `${diffHours}h ago`;
       if (diffDays < 7) return `${diffDays}d ago`;
-      
       return date.toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
@@ -138,150 +149,169 @@ const Chats = () => {
     }
   };
 
-  // Get unread count for a specific chat
-  const getChatUnreadCount = (chat) => {
-    return chat.unreadCount || 0;
-  };
-
-  // Format badge text for chat unread count
-  const formatChatBadge = (count) => {
-    if (!count || count === 0) return null;
-    return count > 99 ? '99+' : String(count);
-  };
-
-  // Handle delete chat
-  const handleDeleteChat = async (e, chatId) => {
+  const handleDeleteClick = (e, chatId) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    if (!window.confirm('Delete conversation?')) {
-      return;
-    }
+    setConfirmDeleteId(chatId);
+  };
 
+  const handleDeleteConfirm = async (e, chat) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const chatId = chat._id;
+    const chatUnreadCount = getChatUnreadCount(chat);
+    setConfirmDeleteId(null);
     setDeletingChatId(chatId);
     try {
       await deleteChat(chatId);
-      // Remove chat from state immediately without refetch
-      setChats(prev => prev.filter(c => c._id !== chatId));
+      setChats((prev) => prev.filter((c) => c._id !== chatId));
+      setTotalUnread((prev) => Math.max(0, prev - chatUnreadCount));
       showSuccess('Conversation deleted');
     } catch (err) {
-      // Handle specific error cases
       if (err?.response?.status === 401) {
         navigate('/login');
         return;
       }
       if (err?.response?.status === 404) {
-        // Chat already deleted - remove from state and show message
-        // URL logging is handled in chatApi.js
-        setChats(prev => prev.filter(c => c._id !== chatId));
+        setChats((prev) => prev.filter((c) => c._id !== chatId));
         showError('Chat already deleted');
         return;
       }
-      // Other errors
-      const msg = parseError(err);
-      showError(msg);
+      showError(parseError(err));
     } finally {
       setDeletingChatId(null);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="page">
-        <div className="container">
-          <div className="card card--pad text-center py-6">
-            <div className="t-body t-muted">Loading conversations...</div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const handleDeleteCancel = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setConfirmDeleteId(null);
+  };
+
+  const handleRowClick = (chatId) => () => {
+    if (confirmDeleteId === chatId) return;
+    navigate(`/chats/${chatId}`);
+  };
+
+  const myId = getMyId(user);
 
   return (
-    <div className="page">
-      <div className="container">
-        {/* Header */}
-        <div className="page-header mb-6">
-          <h1 className="page-header__title">My Conversations</h1>
-          <p className="page-header__subtitle">
-            {chats.length > 0 
-              ? `${chats.length} ${chats.length === 1 ? 'conversation' : 'conversations'}`
-              : 'Your conversations will appear here'
-            }
-          </p>
-        </div>
+    <div className="chats-page">
+      <div className="chats-shell">
+        <header className="chats-header">
+          <div>
+            <h1 className="chats-title">My Conversations</h1>
+            <p className="chats-sub">
+              {chats.length > 0
+                ? `${chats.length} ${chats.length === 1 ? 'conversation' : 'conversations'}`
+                : 'Your conversations will appear here'}
+              {' · '}
+              Messages are updated automatically when you open a chat.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="chats-refresh"
+            onClick={fetchChatsSafe}
+            disabled={loading}
+          >
+            Refresh
+          </button>
+        </header>
 
-        {/* Empty State */}
-        {chats.length === 0 ? (
-          <div className="card card--pad text-center py-6">
-            <h3 className="t-h3 mb-2">No conversations yet</h3>
-            <p className="t-body t-muted">
+        {loading ? (
+          <div className="chats-skeleton">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="chats-skeleton-row">
+                <div className="chats-skeleton-avatar" />
+                <div className="chats-skeleton-body">
+                  <div className="chats-skeleton-line" />
+                  <div className="chats-skeleton-line" />
+                  <div className="chats-skeleton-line" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : chats.length === 0 ? (
+          <div className="chats-empty">
+            <h2 className="chats-empty-title">No conversations yet</h2>
+            <p className="chats-empty-text">
               Start a conversation by contacting a seller from an ad
             </p>
           </div>
         ) : (
-          <div className="list">
+          <div className="chats-list">
             {chats.map((chat) => {
-              const otherParticipant = getOtherParticipant(chat);
-              const lastMessage = chat.lastMessage;
-              const chatUnreadCount = getChatUnreadCount(chat);
-              const unreadDisplay = formatChatBadge(chatUnreadCount);
-              const hasUnread = chatUnreadCount > 0;
-              const participantName = otherParticipant?.name || 'Unknown User';
+              const other = getOtherParticipant(chat, myId);
+              const participantName = getParticipantName(other);
               const participantInitial = participantName[0]?.toUpperCase() || 'U';
-              
-              return (
-                <div
-                  key={chat._id}
-                  onClick={() => navigate(`/chats/${chat._id}`)}
-                  className="list-item"
-                >
-                  {/* Avatar */}
-                  <div className="list-item__avatar">
-                    {participantInitial}
-                  </div>
+              const unreadCount = getChatUnreadCount(chat);
+              const badgeText = formatBadge(unreadCount);
+              const hasUnread = unreadCount > 0;
+              const lastText = getLastMessageText(chat);
+              const adTitle = getAdTitle(chat);
+              const dateSource = chat.updatedAt || chat.lastMessage?.createdAt;
+              const isConfirming = confirmDeleteId === chat._id;
 
-                  {/* Content */}
-                  <div className="list-item__content">
-                    <div className="list-item__header">
-                      <h3 className="list-title">
+              return (
+                <button
+                  key={chat._id}
+                  type="button"
+                  className="chat-row"
+                  onClick={handleRowClick(chat._id)}
+                >
+                  <div className="chat-avatar">{participantInitial}</div>
+                  <div className="chat-main">
+                    <div className="chat-top">
+                      <div className="chat-name">
                         {participantName}
-                        {unreadDisplay && (
-                          <span className="badge badge-active">
-                            {unreadDisplay}
-                          </span>
+                        {badgeText != null && <span className="chat-badge">{badgeText}</span>}
+                      </div>
+                      <div className="chat-meta">
+                        {dateSource && (
+                          <span className="chat-date">{formatDate(dateSource)}</span>
                         )}
-                      </h3>
-                      <div className="list-meta">
-                        {chat.updatedAt && (
-                          <span className="list-date">
-                            {formatDate(chat.updatedAt)}
-                          </span>
+                        {isConfirming ? (
+                          <div className="chat-row-actions" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              className="chat-del-confirm chat-del-cancel"
+                              onClick={(e) => handleDeleteCancel(e)}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              className="chat-del-confirm chat-del-confirm-btn"
+                              onClick={(e) => handleDeleteConfirm(e, chat)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            className="chat-del"
+                            onClick={(e) => handleDeleteClick(e, chat._id)}
+                            disabled={deletingChatId === chat._id}
+                            title="Delete conversation"
+                          >
+                            {deletingChatId === chat._id ? '…' : 'Delete'}
+                          </button>
                         )}
-                        <button
-                          onClick={(e) => handleDeleteChat(e, chat._id)}
-                          disabled={deletingChatId === chat._id}
-                          className="btn btn-secondary btn-sm"
-                          title="Delete conversation"
-                        >
-                          {deletingChatId === chat._id ? '...' : 'Delete'}
-                        </button>
                       </div>
                     </div>
-                    
-                    {chat.ad && (
-                      <p className="list-sub t-muted">
-                        {chat.ad.title}
-                      </p>
-                    )}
-                    
-                    {lastMessage && (
-                      <p className={`list-sub ${hasUnread ? 't-bold' : ''}`}>
-                        {lastMessage.text}
-                      </p>
-                    )}
+                    <div className="chat-sub">
+                      {adTitle && <div className="chat-ad">{adTitle}</div>}
+                      {lastText && (
+                        <div className={`chat-preview ${hasUnread ? 'chat-preview--unread' : ''}`}>
+                          {lastText}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
