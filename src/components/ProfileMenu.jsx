@@ -169,15 +169,17 @@ const ProfileMenu = () => {
     navigate(path);
   };
 
-  // If user is not logged in, show Login link
+  // If user is not logged in, show Login and Register links
   if (!user) {
     return (
-      <Link
-        to="/login"
-        className="nav-link"
-      >
-        Login
-      </Link>
+      <>
+        <Link to="/login" className="nav-link">
+          Login
+        </Link>
+        <Link to="/register" className="nav-link nav-link--primary">
+          Register
+        </Link>
+      </>
     );
   }
 

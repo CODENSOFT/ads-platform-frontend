@@ -1,18 +1,18 @@
-/* Premium dark-green unified theme */
+/* Premium light unified theme (white surfaces + green accents) */
 :root {
-  /* Palette (as requested) */
-  --bg: #0B0F0E;
-  --surface: #0F1714;
-  --surface-2: #121C18;
-  --border: rgba(255,255,255,0.08);
-  --text: rgba(255,255,255,0.92);
-  --muted: rgba(255,255,255,0.62);
-  --muted-2: rgba(255,255,255,0.45);
+  /* Palette */
+  --bg: #F6F7F6;
+  --surface: #FFFFFF;
+  --surface-2: #FAFBFA;
+  --border: rgba(15, 23, 42, 0.10);
+  --text: rgba(15, 23, 42, 0.92);
+  --muted: rgba(15, 23, 42, 0.62);
+  --muted-2: rgba(15, 23, 42, 0.45);
   --brand: #2D6A4F;
   --brand-2: #40916C;
-  --brand-soft: rgba(45,106,79,0.18);
+  --brand-soft: rgba(45,106,79,0.14);
   --danger: #EF4444;
-  --shadow: 0 12px 28px rgba(0,0,0,0.35);
+  --shadow: 0 12px 28px rgba(15, 23, 42, 0.10);
 
   /* Layout */
   --radius: 18px;
@@ -60,8 +60,8 @@ a { color: inherit; }
 
 /* Glass surface (navbar) */
 .p-glass {
-  background: rgba(15, 23, 20, 0.72);
-  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(15, 23, 42, 0.10);
   backdrop-filter: blur(10px);
 }
 :
@@ -84,7 +84,7 @@ a { color: inherit; }
 
 .btn-primary {
   background: linear-gradient(180deg, var(--brand) 0%, rgba(45,106,79,0.86) 100%);
-  color: rgba(255,255,255,0.95);
+  color: rgba(255,255,255,0.96);
   box-shadow: 0 10px 22px rgba(45,106,79,0.20);
 }
 .btn-primary:hover:not(:disabled) { background: linear-gradient(180deg, var(--brand-2) 0%, var(--brand) 100%); transform: translateY(-1px); }
@@ -99,7 +99,7 @@ a { color: inherit; }
 .btn-danger {
   background: rgba(239, 68, 68, 0.16);
   border-color: rgba(239, 68, 68, 0.35);
-  color: rgba(255,255,255,0.92);
+  color: rgba(15, 23, 42, 0.92);
 }
 .btn-danger:hover:not(:disabled) { background: rgba(239, 68, 68, 0.22); transform: translateY(-1px); }
 :
@@ -108,8 +108,8 @@ a { color: inherit; }
   width: 100%;
   border-radius: 14px;
   padding: 12px 14px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(18, 28, 24, 0.75);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(255, 255, 255, 0.92);
   color: var(--text);
   transition: box-shadow .18s ease, border-color .18s ease, background .18s ease;
 }
@@ -118,7 +118,7 @@ a { color: inherit; }
   outline: none;
   border-color: rgba(64,145,108,0.55);
   box-shadow: 0 0 0 4px var(--brand-soft);
-  background: rgba(18, 28, 24, 0.92);
+  background: #fff;
 }
 :
 /* Badge */
@@ -133,7 +133,7 @@ a { color: inherit; }
   font-size: 12px;
   font-weight: 750;
   background: rgba(45,106,79,0.18);
-  color: rgba(255,255,255,0.92);
+  color: rgba(15, 23, 42, 0.92);
   border: 1px solid rgba(64,145,108,0.32);
 }
 
@@ -142,7 +142,7 @@ a { color: inherit; }
   position: sticky;
   top: 0;
   z-index: 1000;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
 }
 .p-navbar-inner {
   height: 70px;
@@ -152,7 +152,52 @@ a { color: inherit; }
   gap: 16px;
 }
 .p-footer {
-  border-top: 1px solid rgba(255,255,255,0.08);
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
   color: var(--muted-2);
   padding: 18px 0;
+}
+
+/* Utilities */
+.u-row { display: flex; align-items: center; gap: 12px; }
+.u-between { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.u-stack-16 { display: flex; flex-direction: column; gap: 16px; }
+.u-grid-24 { display: grid; gap: 24px; }
+
+/* Navbar primitives */
+.nav-link {
+  color: rgba(15, 23, 42, 0.86);
+  text-decoration: none;
+  font-weight: 700;
+}
+.nav-icon-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  color: rgba(15, 23, 42, 0.86);
+  text-decoration: none;
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  background: rgba(255,255,255,0.75);
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.nav-icon-btn:hover { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(15,23,42,0.10); border-color: rgba(45,106,79,0.25); }
+.nav-badge-green {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: rgba(45,106,79,0.16);
+  border: 1px solid rgba(45,106,79,0.32);
+  color: rgba(15, 23, 42, 0.92);
+  font-size: 12px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }

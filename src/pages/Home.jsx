@@ -4,16 +4,19 @@ import { getAds } from '../api/endpoints';
 import { fetchCategories } from '../api/categoriesApi';
 import AdCard from '../components/AdCard';
 
-// Icon mapping by slug keywords
-const getCategoryIcon = (slug) => {
-  const s = (slug || '').toLowerCase();
-  if (s.includes('autom')) {
+// Icon per category (slug/name keywords). Each card gets one icon.
+const getCategoryIcon = (slug, name = '') => {
+  const s = `${(slug || '')} ${(name || '')}`.toLowerCase();
+
+  // Auto & Transport
+  if (s.includes('autom') || s.includes('transport') || s.includes('auto')) {
     return (
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M5 11L6.5 6.5H17.5L19 11M5 11H3M5 11V16.5M19 11H21M19 11V16.5M7 16.5H17M7 16.5C7 17.3284 6.32843 18 5.5 18C4.67157 18 4 17.3284 4 16.5M7 16.5C7 15.6716 7.67157 15 8.5 15C9.32843 15 10 15.6716 10 16.5M17 16.5C17 17.3284 17.6716 18 18.5 18C19.3284 18 20 17.3284 20 16.5M17 16.5C17 15.6716 16.3284 15 15.5 15C14.6716 15 14 15.6716 14 16.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>
     );
   }
+  // Imobiliare
   if (s.includes('imobil')) {
     return (
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -22,7 +25,8 @@ const getCategoryIcon = (slug) => {
       </svg>
     );
   }
-  if (s.includes('electron')) {
+  // Electronice & Tehnică
+  if (s.includes('electron') || s.includes('tehnic')) {
     return (
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" strokeWidth="2"/>
@@ -30,23 +34,24 @@ const getCategoryIcon = (slug) => {
       </svg>
     );
   }
-  if (s.includes('casa')) {
+  // Casă & Grădină (frunză / grădină)
+  if (s.includes('casa') || s.includes('gradina') || s.includes('grădină')) {
     return (
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M11 20C7 16 2 10 2 6a10 10 0 0 1 20 0c0 4-5 10-9 14z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>
     );
   }
-  if (s.includes('moda')) {
+  // Modă & Frumusețe
+  if (s.includes('moda') || s.includes('frumus')) {
     return (
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M20.84 4.61C20.3292 4.099 19.7228 3.69364 19.0554 3.41708C18.3879 3.14052 17.6725 2.99817 16.95 2.99817C16.2275 2.99817 15.5121 3.14052 14.8446 3.41708C14.1772 3.69364 13.5708 4.099 13.06 4.61L12 5.67L10.94 4.61C9.9083 3.57831 8.50903 2.99871 7.05 2.99871C5.59096 2.99871 4.19169 3.57831 3.16 4.61C2.1283 5.64169 1.54871 7.04097 1.54871 8.5C1.54871 9.95903 2.1283 11.3583 3.16 12.39L4.22 13.45L12 21.23L19.78 13.45L20.84 12.39C21.351 11.8792 21.7564 11.2728 22.0329 10.6054C22.3095 9.93789 22.4518 9.22248 22.4518 8.5C22.4518 7.77752 22.3095 7.0621 22.0329 6.39464C21.7564 5.72718 21.351 5.12075 20.84 4.61Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>
     );
   }
-  if (s.includes('munca') || s.includes('job')) {
+  // Locuri de muncă
+  if (s.includes('munca') || s.includes('muncă') || s.includes('job') || s.includes('locuri')) {
     return (
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="2" y="7" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="2"/>
@@ -54,7 +59,13 @@ const getCategoryIcon = (slug) => {
       </svg>
     );
   }
-  return null;
+
+  // Default: generic category
+  return (
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M4 6h16M4 10h16M4 14h16M4 18h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+  );
 };
 
 const Home = () => {
@@ -103,7 +114,7 @@ const Home = () => {
           } else {
             // No categories from API, use fallback
             const fallback = [
-              { _id: "fallback-automobile", name: "Automobile", slug: "automobile" },
+              { _id: "fallback-automobile", name: "Auto & Transport", slug: "automobile" },
               { _id: "fallback-imobiliare", name: "Imobiliare", slug: "imobiliare" },
               { _id: "fallback-electronice", name: "Electronice & Tehnică", slug: "electronice-tehnica" },
               { _id: "fallback-casa", name: "Casă & Grădină", slug: "casa-gradina" },
@@ -118,7 +129,7 @@ const Home = () => {
 
         // HARD fallback list so UI still shows:
         const fallback = [
-          { _id: "fallback-automobile", name: "Automobile", slug: "automobile" },
+          { _id: "fallback-automobile", name: "Auto & Transport", slug: "automobile" },
           { _id: "fallback-imobiliare", name: "Imobiliare", slug: "imobiliare" },
           { _id: "fallback-electronice", name: "Electronice & Tehnică", slug: "electronice-tehnica" },
           { _id: "fallback-casa", name: "Casă & Grădină", slug: "casa-gradina" },
@@ -169,7 +180,7 @@ const Home = () => {
     
     // Use fallback if we don't have enough
     const fallback = [
-      { _id: "fallback-automobile", name: "Automobile", slug: "automobile" },
+      { _id: "fallback-automobile", name: "Auto & Transport", slug: "automobile" },
       { _id: "fallback-imobiliare", name: "Imobiliare", slug: "imobiliare" },
       { _id: "fallback-electronice", name: "Electronice & Tehnică", slug: "electronice-tehnica" },
       { _id: "fallback-casa", name: "Casă & Grădină", slug: "casa-gradina" },
@@ -258,61 +269,42 @@ const Home = () => {
             </div>
           ) : displayCategories.length > 0 ? (
             <div className="grid grid-3">
-              {displayCategories.map((category) => {
-                const icon = getCategoryIcon(category.slug);
-                return (
-                  <div
-                    key={category._id || category.id || category.slug}
-                    onClick={() => handleCategoryClick(category)}
-                    className="category-card card card-hover"
-                  >
-                    {icon && (
-                      <div className="category-card__icon">
-                        {icon}
-          </div>
-        )}
-                    <h3 className="category-card__title">
-                      {category.name}
-                    </h3>
-                    <p className="category-card__subtitle">
-                      Explore {category.name}
-                    </p>
+              {displayCategories.map((category) => (
+                <div
+                  key={category._id || category.id || category.slug}
+                  onClick={() => handleCategoryClick(category)}
+                  className="category-card card card-hover"
+                >
+                  <div className="category-card__icon">
+                    {getCategoryIcon(category.slug, category.name)}
                   </div>
-                );
-              })}
+                  <h3 className="category-card__title">{category.name}</h3>
+                  <p className="category-card__subtitle">Explore {category.name}</p>
+                </div>
+              ))}
             </div>
           ) : (
             <div className="grid grid-3">
-              {Array.from({ length: 6 }).map((_, i) => {
-                const fallback = [
-                  { _id: "fallback-automobile", name: "Automobile", slug: "automobile" },
-                  { _id: "fallback-imobiliare", name: "Imobiliare", slug: "imobiliare" },
-                  { _id: "fallback-electronice", name: "Electronice & Tehnică", slug: "electronice-tehnica" },
-                  { _id: "fallback-casa", name: "Casă & Grădină", slug: "casa-gradina" },
-                  { _id: "fallback-moda", name: "Modă & Frumusețe", slug: "moda-frumusete" },
-                  { _id: "fallback-jobs", name: "Locuri de muncă", slug: "locuri-de-munca" },
-                ][i];
-                const icon = getCategoryIcon(fallback.slug);
-                return (
-                  <div
-                    key={fallback._id}
-                    onClick={() => handleCategoryClick(fallback)}
-                    className="category-card card card-hover"
-                  >
-                    {icon && (
-                      <div className="category-card__icon">
-                        {icon}
-          </div>
-        )}
-                    <h3 className="category-card__title">
-                      {fallback.name}
-                    </h3>
-                    <p className="category-card__subtitle">
-                      Explore {fallback.name}
-                    </p>
-                    </div>
-                  );
-              })}
+              {[
+                { _id: "fallback-automobile", name: "Auto & Transport", slug: "automobile" },
+                { _id: "fallback-imobiliare", name: "Imobiliare", slug: "imobiliare" },
+                { _id: "fallback-electronice", name: "Electronice & Tehnică", slug: "electronice-tehnica" },
+                { _id: "fallback-casa", name: "Casă & Grădină", slug: "casa-gradina" },
+                { _id: "fallback-moda", name: "Modă & Frumusețe", slug: "moda-frumusete" },
+                { _id: "fallback-jobs", name: "Locuri de muncă", slug: "locuri-de-munca" },
+              ].map((fallback) => (
+                <div
+                  key={fallback._id}
+                  onClick={() => handleCategoryClick(fallback)}
+                  className="category-card card card-hover"
+                >
+                  <div className="category-card__icon">
+                    {getCategoryIcon(fallback.slug, fallback.name)}
+                  </div>
+                  <h3 className="category-card__title">{fallback.name}</h3>
+                  <p className="category-card__subtitle">Explore {fallback.name}</p>
+                </div>
+              ))}
             </div>
           )}
         </section>

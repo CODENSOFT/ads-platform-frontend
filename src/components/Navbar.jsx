@@ -144,8 +144,7 @@ const Navbar = () => {
         <div className="navbar-inner">
           {/* Left: Brand */}
           <Link to="/" className="brand">
-            <span className="brand-badge">A</span>
-            <span>AdsPlatform</span>
+            AdsPlatform
           </Link>
 
           {/* Center: Search */}
