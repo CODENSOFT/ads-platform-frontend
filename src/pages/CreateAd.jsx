@@ -259,6 +259,26 @@ const CreateAd = () => {
     setValidationErrors((prev) => ({ ...prev, subCategory: null }));
   };
 
+  const handleRefreshDetails = () => {
+    if (!categorySlug?.trim()) return;
+    setCategoryFieldsLoading(true);
+    getCategoryBySlug(categorySlug)
+      .then((res) => {
+        const cat = res?.data?.category ?? res?.data?.data ?? res?.data;
+        if (cat && (cat.fields == null || Array.isArray(cat.fields))) {
+          setCategoryWithFields(cat);
+        } else {
+          const fromList = categories.find((c) => c.slug === categorySlug);
+          setCategoryWithFields(fromList || cat || null);
+        }
+      })
+      .catch(() => {
+        const fromList = categories.find((c) => c.slug === categorySlug);
+        setCategoryWithFields(fromList || null);
+      })
+      .finally(() => setCategoryFieldsLoading(false));
+  };
+
   const step1Active = title.trim().length >= 3 && description.trim().length >= 20 && price && Number(price) > 0;
   const step2Active = !!categorySlug?.trim();
   const step3Active = images.length > 0;
@@ -489,7 +509,36 @@ const CreateAd = () => {
                       />
                     </div>
                   ) : (
-                    <p className="createad-details-empty">No additional details for this category yet.</p>
+                    <div className="createad-details-empty-card card">
+                      <div className="createad-details-empty-icon" aria-hidden="true">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                          <polyline points="14 2 14 8 20 8" />
+                          <line x1="16" y1="13" x2="8" y2="13" />
+                          <line x1="16" y1="17" x2="8" y2="17" />
+                          <polyline points="10 9 9 9 8 9" />
+                        </svg>
+                      </div>
+                      {availableSubcategories.length > 0 ? (
+                        <>
+                          <h4 className="createad-details-empty-title">Select a subcategory to unlock detailed criteria</h4>
+                          <p className="createad-details-empty-sub">Some categories have specific fields inside subcategories.</p>
+                        </>
+                      ) : (
+                        <>
+                          <h4 className="createad-details-empty-title">Details are being prepared for this category</h4>
+                          <p className="createad-details-empty-sub">If you are the admin, add fields to this category in DB.</p>
+                          <button
+                            type="button"
+                            className="btn btn-secondary createad-details-empty-btn"
+                            onClick={handleRefreshDetails}
+                            disabled={loading || categoryFieldsLoading}
+                          >
+                            {categoryFieldsLoading ? 'Refreshing…' : 'Refresh details'}
+                          </button>
+                        </>
+                      )}
+                    </div>
                   )}
                 </section>
               )}

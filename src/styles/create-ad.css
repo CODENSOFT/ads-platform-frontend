@@ -265,15 +265,54 @@
   max-width: 60%;
 }
 @keyframes createad-skeleton-shine {
-  to { background-position: 200% 0; }
+  to {
+    background-position: 200% 0;
+  }
 }
 
-.createad-details-empty {
+/* Details empty state – premium info card */
+.createad-details-empty-card {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+  padding: 24px;
+  margin: 0;
+  background-image: linear-gradient(
+    180deg,
+    rgba(37, 99, 235, 0.03) 0%,
+    transparent 100%
+  );
+}
+.createad-details-empty-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+  margin-bottom: 16px;
+}
+.createad-details-empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 8px 0;
+  line-height: 1.3;
+}
+.createad-details-empty-sub {
   font-size: 14px;
   color: #64748b;
-  margin: 0;
-  padding: 16px 0;
-  font-style: italic;
+  margin: 0 0 16px 0;
+  line-height: 1.45;
+}
+.createad-details-empty-sub:last-child {
+  margin-bottom: 0;
+}
+.createad-details-empty-btn {
+  margin-top: 8px;
 }
 
 /* Fields */
