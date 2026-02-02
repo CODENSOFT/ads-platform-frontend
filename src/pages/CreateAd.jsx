@@ -8,8 +8,13 @@ import ImageUploader from '../components/ImageUploader';
 import DynamicFields from '../components/DynamicFields';
 import { capitalizeWords } from '../utils/text';
 import { validateDynamicDetails, mergeFieldsByKey } from '../utils/dynamicDetailsValidation';
-import { CATEGORY_FIELD_PRESETS } from '../config/categoryFieldPresets';
+import { CATEGORY_SLUG_ALIASES, CATEGORY_FIELD_PRESETS } from '../config/categoryFieldPresets';
 import '../styles/create-ad.css';
+
+const canonicalSlug = (slug) => {
+  const s = String(slug || '').toLowerCase().trim();
+  return CATEGORY_SLUG_ALIASES[s] || s;
+};
 
 const CreateAd = () => {
   const navigate = useNavigate();
@@ -29,6 +34,7 @@ const CreateAd = () => {
   const [subCategorySlug, setSubCategorySlug] = useState('');
   const [details, setDetails] = useState({});
   const [categoryWithFields, setCategoryWithFields] = useState(null);
+  const [categoryFieldsLoading, setCategoryFieldsLoading] = useState(false);
 
   useEffect(() => {
     const url = images?.[0] ? URL.createObjectURL(images[0]) : '';
@@ -42,16 +48,19 @@ const CreateAd = () => {
   useEffect(() => {
     setDetails({});
     setCategoryWithFields(null);
+    setCategoryFieldsLoading(false);
     if (!categorySlug || !categorySlug.trim()) return;
 
     const fromList = categories.find((c) => c.slug === categorySlug);
     const hasFields = fromList?.fields && Array.isArray(fromList.fields) && fromList.fields.length > 0;
     if (hasFields) {
       setCategoryWithFields(fromList);
+      setCategoryFieldsLoading(false);
       return;
     }
 
     let cancelled = false;
+    setCategoryFieldsLoading(true);
     getCategoryBySlug(categorySlug)
       .then((res) => {
         if (cancelled) return;
@@ -64,10 +73,14 @@ const CreateAd = () => {
       })
       .catch(() => {
         if (!cancelled) setCategoryWithFields(fromList || null);
+      })
+      .finally(() => {
+        if (!cancelled) setCategoryFieldsLoading(false);
       });
     return () => { cancelled = true; };
   }, [categorySlug, categories]);
 
+  const canonicalCategorySlug = canonicalSlug(categorySlug);
   const selectedCategory = categoryWithFields || categories.find((c) => c.slug === categorySlug);
   const availableSubcategories = selectedCategory?.subcategories || selectedCategory?.subs || [];
   const selectedSub = subCategorySlug
@@ -77,7 +90,7 @@ const CreateAd = () => {
   const baseFields =
     Array.isArray(selectedCategory?.fields) && selectedCategory.fields.length > 0
       ? selectedCategory.fields
-      : (CATEGORY_FIELD_PRESETS[categorySlug] || []);
+      : (CATEGORY_FIELD_PRESETS[canonicalCategorySlug] || []);
   const subFields =
     Array.isArray(selectedSub?.fields) && selectedSub.fields.length > 0
       ? selectedSub.fields
@@ -91,7 +104,7 @@ const CreateAd = () => {
     const base =
       Array.isArray(sel?.fields) && sel.fields.length > 0
         ? sel.fields
-        : (CATEGORY_FIELD_PRESETS[categorySlug] || []);
+        : (CATEGORY_FIELD_PRESETS[canonicalSlug(categorySlug)] || []);
     const subs = sel?.subcategories || sel?.subs || [];
     const sub = subCategorySlug ? subs.find((s) => (s.slug || s) === subCategorySlug) : null;
     const subF =
@@ -455,7 +468,13 @@ const CreateAd = () => {
                 <section className="createad-section createad-section--details">
                   <h3 className="createad-section-title">Details</h3>
                   <p className="createad-section-sub">Category-specific criteria for your listing</p>
-                  {mergedFields.length > 0 ? (
+                  {categoryFieldsLoading ? (
+                    <div className="createad-details-skeleton" aria-hidden="true">
+                      <div className="createad-skeleton-line" />
+                      <div className="createad-skeleton-line" />
+                      <div className="createad-skeleton-line createad-skeleton-line--short" />
+                    </div>
+                  ) : mergedFields.length > 0 ? (
                     <div className="createad-details-grid">
                       <DynamicFields
                         fields={mergedFields}
