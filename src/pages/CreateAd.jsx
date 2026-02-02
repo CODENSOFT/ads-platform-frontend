@@ -37,6 +37,7 @@ const CreateAd = () => {
   const [details, setDetails] = useState({});
   const [categoryWithFields, setCategoryWithFields] = useState(null);
   const [categoryFieldsLoading, setCategoryFieldsLoading] = useState(false);
+  const [invalidKeysFromBackend, setInvalidKeysFromBackend] = useState([]);
 
   useEffect(() => {
     const url = images?.[0] ? URL.createObjectURL(images[0]) : '';
@@ -86,18 +87,27 @@ const CreateAd = () => {
     : null;
 
   const apiBase = Array.isArray(selectedCategory?.fields) ? selectedCategory.fields : [];
-  const apiSubExtra = Array.isArray(selectedSub?.fields) ? selectedSub.fields : [];
+  const selectedSubFields = Array.isArray(selectedSub?.fields) ? selectedSub.fields : [];
+  const allSubFieldsUnion = (availableSubcategories || []).reduce(
+    (acc, s) => mergeFieldsByKey(acc, s.fields || []),
+    []
+  );
+  const mergedFields =
+    apiBase.length > 0
+      ? mergeFieldsByKey(apiBase, selectedSubFields)
+      : selectedSub
+        ? mergeFieldsByKey([], selectedSubFields)
+        : allSubFieldsUnion;
   const fallbackFromConstants = getFallbackFieldsForCategory(categorySlug);
   const fallbackBase = getBaseFieldsByCategorySlug(categorySlug);
   const fallbackSubExtra = getExtraFieldsBySubcategorySlug(categorySlug, subCategorySlug);
-  const baseFields =
-    apiBase.length > 0
-      ? apiBase
-      : (fallbackFromConstants.length > 0
-          ? fallbackFromConstants
-          : (fallbackBase.length > 0 ? fallbackBase : (CATEGORY_FIELD_PRESETS[canonicalCategorySlug] || [])));
-  const subExtraFields = apiSubExtra.length > 0 ? apiSubExtra : fallbackSubExtra;
-  const finalFields = mergeFieldsByKey(baseFields, subExtraFields);
+  const baseFieldsFallback =
+    fallbackFromConstants.length > 0
+      ? fallbackFromConstants
+      : (fallbackBase.length > 0 ? fallbackBase : (CATEGORY_FIELD_PRESETS[canonicalCategorySlug] || []));
+  const subExtraFields = selectedSubFields.length > 0 ? selectedSubFields : fallbackSubExtra;
+  const finalFields =
+    mergedFields.length > 0 ? mergedFields : mergeFieldsByKey(baseFieldsFallback, subExtraFields);
 
   // When subcategory/category changes: keep details but remove keys no longer in finalFields
   useEffect(() => {
@@ -106,13 +116,23 @@ const CreateAd = () => {
     const apiBaseEff = Array.isArray(sel?.fields) ? sel.fields : [];
     const subs = sel?.subcategories || sel?.subs || [];
     const sub = subCategorySlug ? subs.find((s) => (s.slug || s) === subCategorySlug) : null;
-    const apiSubEff = Array.isArray(sub?.fields) ? sub.fields : [];
+    const selectedSubFieldsEff = Array.isArray(sub?.fields) ? sub.fields : [];
+    const allSubUnionEff = (subs || []).reduce((acc, s) => mergeFieldsByKey(acc, s.fields || []), []);
+    const mergedEff =
+      apiBaseEff.length > 0
+        ? mergeFieldsByKey(apiBaseEff, selectedSubFieldsEff)
+        : sub
+          ? mergeFieldsByKey([], selectedSubFieldsEff)
+          : allSubUnionEff;
     const fallbackConstEff = getFallbackFieldsForCategory(categorySlug);
     const fallbackBaseEff = getBaseFieldsByCategorySlug(categorySlug);
     const fallbackSubEff = getExtraFieldsBySubcategorySlug(categorySlug, subCategorySlug);
-    const baseEff = apiBaseEff.length > 0 ? apiBaseEff : (fallbackConstEff.length > 0 ? fallbackConstEff : (fallbackBaseEff.length > 0 ? fallbackBaseEff : (CATEGORY_FIELD_PRESETS[canonicalSlug(categorySlug)] || [])));
-    const subEff = apiSubEff.length > 0 ? apiSubEff : fallbackSubEff;
-    const final = mergeFieldsByKey(baseEff, subEff);
+    const baseFallbackEff =
+      fallbackConstEff.length > 0
+        ? fallbackConstEff
+        : (fallbackBaseEff.length > 0 ? fallbackBaseEff : (CATEGORY_FIELD_PRESETS[canonicalSlug(categorySlug)] || []));
+    const subEff = selectedSubFieldsEff.length > 0 ? selectedSubFieldsEff : fallbackSubEff;
+    const final = mergedEff.length > 0 ? mergedEff : mergeFieldsByKey(baseFallbackEff, subEff);
     if (final.length === 0) {
       setDetails({});
       return;
@@ -185,6 +205,7 @@ const CreateAd = () => {
     e.preventDefault();
     setError(null);
     setValidationErrors({});
+    setInvalidKeysFromBackend([]);
 
     if (!validate()) {
       return;
@@ -260,7 +281,10 @@ const CreateAd = () => {
       showError(msg);
 
       if (data?.invalidKeys && Array.isArray(data.invalidKeys) && data.invalidKeys.length > 0) {
+        setInvalidKeysFromBackend(data.invalidKeys);
         showError(`Invalid fields: ${data.invalidKeys.join(', ')}`);
+      } else {
+        setInvalidKeysFromBackend([]);
       }
 
       if (data?.fieldErrors && typeof data.fieldErrors === 'object') {
@@ -289,6 +313,7 @@ const CreateAd = () => {
     setCategorySlug(newCategorySlug);
     setSubCategorySlug('');
     setDetails({});
+    setInvalidKeysFromBackend([]);
     setValidationErrors((prev) => {
       const next = { ...prev, category: null, subCategory: null };
       Object.keys(next).forEach((k) => { if (k.startsWith('detail_')) delete next[k]; });
@@ -534,7 +559,12 @@ const CreateAd = () => {
                     </div>
                   ) : (
                     <div className="createad-empty-details">
-                      Completează detaliile pentru o listare mai bună.
+                      No criteria for this category yet. Please contact support.
+                    </div>
+                  )}
+                  {invalidKeysFromBackend.length > 0 && (
+                    <div className="createad-details-invalid-keys" role="alert">
+                      Invalid criteria: {invalidKeysFromBackend.join(', ')}
                     </div>
                   )}
                 </section>

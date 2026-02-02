@@ -327,6 +327,16 @@
   line-height: 1.5;
 }
 
+.createad-details-invalid-keys {
+  font-size: 13px;
+  color: #dc2626;
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+}
+
 /* Fields */
 .createad-field {
   margin-bottom: 20px;
