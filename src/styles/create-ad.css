@@ -248,6 +248,14 @@
   margin: 0 0 16px 0;
 }
 
+.createad-details-empty {
+  font-size: 14px;
+  color: #64748b;
+  margin: 0;
+  padding: 16px 0;
+  font-style: italic;
+}
+
 /* Fields */
 .createad-field {
   margin-bottom: 20px;

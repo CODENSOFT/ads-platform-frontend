@@ -8,6 +8,7 @@ import ImageUploader from '../components/ImageUploader';
 import DynamicFields from '../components/DynamicFields';
 import { capitalizeWords } from '../utils/text';
 import { validateDynamicDetails, mergeFieldsByKey } from '../utils/dynamicDetailsValidation';
+import { CATEGORY_FIELD_PRESETS } from '../config/categoryFieldPresets';
 import '../styles/create-ad.css';
 
 const CreateAd = () => {
@@ -72,16 +73,30 @@ const CreateAd = () => {
   const selectedSub = subCategorySlug
     ? availableSubcategories.find((s) => (s.slug || s) === subCategorySlug)
     : null;
-  const mergedFields = mergeFieldsByKey(selectedCategory?.fields || [], selectedSub?.fields || []);
+
+  const baseFields =
+    Array.isArray(selectedCategory?.fields) && selectedCategory.fields.length > 0
+      ? selectedCategory.fields
+      : (CATEGORY_FIELD_PRESETS[categorySlug] || []);
+  const subFields =
+    Array.isArray(selectedSub?.fields) && selectedSub.fields.length > 0
+      ? selectedSub.fields
+      : [];
+  const mergedFields = mergeFieldsByKey(baseFields, subFields);
 
   // When subcategory changes: keep details but remove keys no longer in mergedFields
   useEffect(() => {
     if (!categorySlug) return;
     const sel = categoryWithFields || categories.find((c) => c.slug === categorySlug);
-    const base = sel?.fields || [];
+    const base =
+      Array.isArray(sel?.fields) && sel.fields.length > 0
+        ? sel.fields
+        : (CATEGORY_FIELD_PRESETS[categorySlug] || []);
     const subs = sel?.subcategories || sel?.subs || [];
     const sub = subCategorySlug ? subs.find((s) => (s.slug || s) === subCategorySlug) : null;
-    const merged = mergeFieldsByKey(base, sub?.fields || []);
+    const subF =
+      Array.isArray(sub?.fields) && sub.fields.length > 0 ? sub.fields : [];
+    const merged = mergeFieldsByKey(base, subF);
     if (merged.length === 0) return;
     const keys = new Set(merged.map((f) => f.key || f.name).filter(Boolean));
     setDetails((prev) => {
@@ -436,23 +451,27 @@ const CreateAd = () => {
                 )}
               </section>
 
-              {categorySlug && mergedFields.length > 0 && (
+              {categorySlug && (
                 <section className="createad-section createad-section--details">
                   <h3 className="createad-section-title">Details</h3>
                   <p className="createad-section-sub">Category-specific criteria for your listing</p>
-                  <div className="createad-details-grid">
-                    <DynamicFields
-                      fields={mergedFields}
-                      value={details}
-                      onChange={setDetails}
-                      errors={Object.fromEntries(
-                        mergedFields
-                          .filter((f) => (f.key || f.name) && validationErrors[`detail_${f.key || f.name}`])
-                          .map((f) => [(f.key || f.name), validationErrors[`detail_${f.key || f.name}`]])
-                      )}
-                      disabled={loading}
-                    />
-                  </div>
+                  {mergedFields.length > 0 ? (
+                    <div className="createad-details-grid">
+                      <DynamicFields
+                        fields={mergedFields}
+                        value={details}
+                        onChange={setDetails}
+                        errors={Object.fromEntries(
+                          mergedFields
+                            .filter((f) => (f.key || f.name) && validationErrors[`detail_${f.key || f.name}`])
+                            .map((f) => [(f.key || f.name), validationErrors[`detail_${f.key || f.name}`]])
+                        )}
+                        disabled={loading}
+                      />
+                    </div>
+                  ) : (
+                    <p className="createad-details-empty">No additional details for this category yet.</p>
+                  )}
                 </section>
               )}
 
