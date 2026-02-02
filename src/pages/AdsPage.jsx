@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { getAds } from '../api/endpoints';
+import { getAds, getCategoryBySlug } from '../api/endpoints';
 import useCategories from '../hooks/useCategories';
 import AdCard from '../components/AdCard';
 import { capitalizeWords } from '../utils/text';
+import { mergeFieldsByKey } from '../utils/dynamicDetailsValidation';
 import '../styles/ads.css';
 
 const SORT_OPTIONS = [
@@ -36,11 +37,46 @@ const CATEGORY_SLUG_ALIASES = {
   'cat-jobs': ['cat-jobs', 'locuri-de-munca'],
 };
 
+// Parse all details.* from URL into object; number range as _min/_max
+const parseDetailsFromParams = (searchParams) => {
+  const details = {};
+  for (const [key, value] of searchParams.entries()) {
+    if (!key.startsWith('details.') || value === '') continue;
+    const rest = key.slice(8);
+    if (rest.endsWith('_min') || rest.endsWith('_max')) {
+      const fieldKey = rest.slice(0, -4);
+      const suffix = rest.slice(-4);
+      if (!details[fieldKey]) details[fieldKey] = {};
+      details[fieldKey][suffix === '_min' ? 'min' : 'max'] = value;
+    } else {
+      details[rest] = value;
+    }
+  }
+  return details;
+};
+
+// Build flat params for API: details.year=2018, details.fuel=Diesel, details.year_min=2010, details.year_max=2020
+const detailsToParams = (details) => {
+  const flat = {};
+  Object.entries(details).forEach(([key, val]) => {
+    if (val != null && val !== '') {
+      if (typeof val === 'object' && (val.min != null || val.max != null)) {
+        if (val.min != null && val.min !== '') flat[`details.${key}_min`] = val.min;
+        if (val.max != null && val.max !== '') flat[`details.${key}_max`] = val.max;
+      } else {
+        flat[`details.${key}`] = String(val);
+      }
+    }
+  });
+  return flat;
+};
+
 const AdsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { categories } = useCategories();
   const [loading, setLoading] = useState(true);
   const [visibleAds, setVisibleAds] = useState([]);
+  const [categorySchema, setCategorySchema] = useState(null);
   const [pagination, setPagination] = useState({
     page: 1,
     pages: 1,
@@ -63,8 +99,26 @@ const AdsPage = () => {
   const limit = parseInt(searchParams.get('limit') || '20', 10);
   const minPrice = searchParams.get('minPrice') || '';
   const maxPrice = searchParams.get('maxPrice') || '';
+  const detailsFromUrl = parseDetailsFromParams(searchParams);
 
-  // Fetch ads with server-side filtering only (no client-side filtering, no fetchLimit 10000)
+  // When category selected, fetch category schema for filterable fields
+  useEffect(() => {
+    setCategorySchema(null);
+    if (!categorySlugParam || !categorySlugParam.trim()) return;
+    let cancelled = false;
+    getCategoryBySlug(categorySlugParam)
+      .then((res) => {
+        if (cancelled) return;
+        const cat = res?.data?.category ?? res?.data?.data ?? res?.data;
+        setCategorySchema(cat?.fields && Array.isArray(cat.fields) ? cat : null);
+      })
+      .catch(() => {
+        if (!cancelled) setCategorySchema(null);
+      });
+    return () => { cancelled = true; };
+  }, [categorySlugParam]);
+
+  // Fetch ads with server-side filtering only
   const fetchAds = useCallback(async () => {
     try {
       setLoading(true);
@@ -82,6 +136,12 @@ const AdsPage = () => {
       if (searchParam) params.search = searchParam;
       if (minPrice) params.minPrice = minPrice;
       if (maxPrice) params.maxPrice = maxPrice;
+
+      // details.* query params: details.year=2018, details.fuel=Diesel, details.year_min/max
+      const detailsObj = parseDetailsFromParams(searchParams);
+      Object.entries(detailsToParams(detailsObj)).forEach(([k, v]) => {
+        params[k] = v;
+      });
 
       const response = await getAds(params);
       const data = response.data;
@@ -112,7 +172,7 @@ const AdsPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, limit, sort, minPrice, maxPrice, categorySlugParam, subCategorySlugParam, searchParam]);
+  }, [page, limit, sort, minPrice, maxPrice, categorySlugParam, subCategorySlugParam, searchParam, searchParams]);
 
   useEffect(() => {
     fetchAds();
@@ -137,6 +197,9 @@ const AdsPage = () => {
     next.delete('subCategorySlug');
     next.delete('subCategoryId');
     next.delete('page');
+    for (const key of next.keys()) {
+      if (key.startsWith('details.')) next.delete(key);
+    }
     setSearchParams(next);
   };
 
@@ -191,8 +254,47 @@ const AdsPage = () => {
     selectedSubcategory?.name || selectedSubcategory?.label || selectedSubcategory || subCategorySlugParam || ''
   ) || subCategorySlugParam;
 
+  const mergedFields = mergeFieldsByKey(
+    categorySchema?.fields || [],
+    selectedSubcategory?.fields || [],
+  );
+  const filterableFields = mergedFields.filter(
+    (f) => f.type === 'number' || f.type === 'select',
+  );
+
+  const setDetailsFilter = (fieldKey, valueOrRange) => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('page');
+    if (typeof valueOrRange === 'object' && valueOrRange !== null) {
+      next.delete(`details.${fieldKey}_min`);
+      next.delete(`details.${fieldKey}_max`);
+      if (valueOrRange.min != null && valueOrRange.min !== '')
+        next.set(`details.${fieldKey}_min`, String(valueOrRange.min));
+      if (valueOrRange.max != null && valueOrRange.max !== '')
+        next.set(`details.${fieldKey}_max`, String(valueOrRange.max));
+    } else {
+      next.delete(`details.${fieldKey}_min`);
+      next.delete(`details.${fieldKey}_max`);
+      if (valueOrRange !== '' && valueOrRange != null) next.set(`details.${fieldKey}`, String(valueOrRange));
+      else next.delete(`details.${fieldKey}`);
+    }
+    setSearchParams(next);
+  };
+
   const hasActiveFilters =
-    categorySlugParam || subCategorySlugParam || searchParam || minPrice || maxPrice;
+    categorySlugParam ||
+    subCategorySlugParam ||
+    searchParam ||
+    minPrice ||
+    maxPrice ||
+    filterableFields.some((f) => {
+      const k = f.key || f.name;
+      if (!k) return false;
+      const v = detailsFromUrl[k];
+      if (v != null && v !== '') return true;
+      if (typeof v === 'object' && (v.min != null || v.max != null)) return true;
+      return false;
+    });
 
   return (
     <div className="ads-page">
@@ -370,6 +472,87 @@ const AdsPage = () => {
                   />
                 </div>
               </div>
+
+              {categorySlugParam && filterableFields.length > 0 && (
+                <div className="filter-group filter-group--details">
+                  <h3 className="filter-subtitle">Details</h3>
+                  {filterableFields.map((field) => {
+                    const key = field.key || field.name;
+                    if (!key) return null;
+                    const label = field.label || capitalizeWords(String(key).replace(/-/g, ' '));
+                    const value = detailsFromUrl[key];
+                    if (field.type === 'number') {
+                      const range = typeof value === 'object' && value !== null ? value : {};
+                      return (
+                        <div key={key} className="filter-group filter-detail-range">
+                          <label className="filter-label">{label}</label>
+                          <div className="filter-row-2">
+                            <input
+                              type="number"
+                              placeholder="Min"
+                              value={range.min ?? ''}
+                              onChange={(e) =>
+                                setDetailsFilter(key, {
+                                  ...range,
+                                  min: e.target.value,
+                                })
+                              }
+                              className="field-input"
+                            />
+                            <input
+                              type="number"
+                              placeholder="Max"
+                              value={range.max ?? ''}
+                              onChange={(e) =>
+                                setDetailsFilter(key, {
+                                  ...range,
+                                  max: e.target.value,
+                                })
+                              }
+                              className="field-input"
+                            />
+                          </div>
+                          {field.unit && (
+                            <span className="filter-unit">{field.unit}</span>
+                          )}
+                        </div>
+                      );
+                    }
+                    if (field.type === 'select') {
+                      const opts = field.options || [];
+                      const options = Array.isArray(opts)
+                        ? opts.map((o) =>
+                            typeof o === 'string'
+                              ? { value: o, label: capitalizeWords(o) }
+                              : { value: o.value ?? o.label, label: o.label ?? o.value },
+                          )
+                        : [];
+                      const currentVal = typeof value === 'string' ? value : '';
+                      return (
+                        <div key={key} className="filter-group">
+                          <label className="filter-label" htmlFor={`ads-detail-${key}`}>
+                            {label}
+                          </label>
+                          <select
+                            id={`ads-detail-${key}`}
+                            value={currentVal}
+                            onChange={(e) => setDetailsFilter(key, e.target.value || '')}
+                            className="field-input"
+                          >
+                            <option value="">Any</option>
+                            {options.map((opt) => (
+                              <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })}
+                </div>
+              )}
             </div>
           </aside>
 

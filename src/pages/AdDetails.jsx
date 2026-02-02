@@ -354,14 +354,18 @@ const AdDetails = () => {
         )}
 
         {(() => {
-          const attrs = ad.attributes && typeof ad.attributes === 'object' && !Array.isArray(ad.attributes) ? ad.attributes : {};
+          const detailsObj = ad.details && typeof ad.details === 'object' && !Array.isArray(ad.details)
+            ? ad.details
+            : ad.attributes && typeof ad.attributes === 'object' && !Array.isArray(ad.attributes)
+              ? ad.attributes
+              : {};
           const fields = categorySchema?.fields || [];
           const rows = fields
             .map((field) => {
               const key = field.key || field.name;
               if (!key) return null;
-              const val = attrs[key];
-              if (val === undefined || val === null || (typeof val === 'string' && !val.trim())) return null;
+              const val = detailsObj[key];
+              if (val === undefined || val === null || (typeof val === 'string' && !String(val).trim())) return null;
               const label = field.label || capitalizeWords(String(key).replace(/-/g, ' '));
               const displayVal = field.type === 'boolean' ? (val ? 'Yes' : 'No') : String(val);
               const unit = field.unit ? ` ${field.unit}` : '';
@@ -371,7 +375,7 @@ const AdDetails = () => {
           if (rows.length === 0) return null;
           return (
             <div className="ad-specs-card">
-              <h2 className="ad-section-title">Specifications</h2>
+              <h2 className="ad-section-title">Details</h2>
               <dl className="ad-specs-list">
                 {rows.map((row, idx) => (
                   <div key={idx} className="ad-specs-row">
