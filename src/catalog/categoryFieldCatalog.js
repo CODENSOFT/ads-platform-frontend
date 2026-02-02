@@ -135,18 +135,33 @@ const PRESET_BUILDERS = {
 };
 
 /**
- * Returns fallback fields for a category (and optional subcategory) when API has none.
+ * Base fields for a category (category-level only, never depends on subcategory).
  * Slug normalization: lowercase, trim. Returns [] for unknown slugs.
  *
  * @param {string} categorySlug
- * @param {string} [subCategorySlug]
  * @returns {Array<{key: string, label: string, type: string, ...}>}
  */
-export function getFallbackFieldsByCategorySlug(categorySlug, subCategorySlug) {
+export function getBaseFieldsByCategorySlug(categorySlug) {
   const cat = normalizeSlug(categorySlug);
   if (!cat) return [];
   const canonical = CATALOG_ALIASES[cat] || cat;
   const builder = PRESET_BUILDERS[canonical];
   if (!builder) return [];
   return builder();
+}
+
+/**
+ * Optional extra fields for a subcategory (add/override on top of base).
+ * Returns [] for unknown or when no extras defined.
+ *
+ * @param {string} categorySlug
+ * @param {string} [subCategorySlug]
+ * @returns {Array<{key: string, label: string, type: string, ...}>}
+ */
+export function getExtraFieldsBySubcategorySlug(categorySlug, subCategorySlug) {
+  const cat = normalizeSlug(categorySlug);
+  const sub = normalizeSlug(subCategorySlug);
+  if (!cat || !sub) return [];
+  // Extras per subcategory can be added here later; for now empty.
+  return [];
 }

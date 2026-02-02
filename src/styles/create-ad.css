@@ -315,6 +315,18 @@
   margin-top: 8px;
 }
 
+/* Empty details hint (no extra criteria for this category) */
+.createad-empty-details {
+  font-size: 14px;
+  color: #64748b;
+  padding: 20px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  margin: 0;
+  line-height: 1.5;
+}
+
 /* Fields */
 .createad-field {
   margin-bottom: 20px;

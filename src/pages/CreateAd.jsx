@@ -9,7 +9,7 @@ import DynamicFields from '../components/DynamicFields';
 import { capitalizeWords } from '../utils/text';
 import { validateDynamicDetails, mergeFieldsByKey } from '../utils/dynamicDetailsValidation';
 import { CATEGORY_SLUG_ALIASES, CATEGORY_FIELD_PRESETS } from '../config/categoryFieldPresets';
-import { getFallbackFieldsByCategorySlug } from '../catalog/categoryFieldCatalog';
+import { getBaseFieldsByCategorySlug, getExtraFieldsBySubcategorySlug } from '../catalog/categoryFieldCatalog';
 import '../styles/create-ad.css';
 
 const canonicalSlug = (slug) => {
@@ -88,33 +88,30 @@ const CreateAd = () => {
     ? availableSubcategories.find((s) => (s.slug || s) === subCategorySlug)
     : null;
 
+  const apiBase = Array.isArray(selectedCategory?.fields) ? selectedCategory.fields : [];
+  const apiSubExtra = Array.isArray(selectedSub?.fields) ? selectedSub.fields : [];
+  const fallbackBase = getBaseFieldsByCategorySlug(categorySlug);
+  const fallbackSubExtra = getExtraFieldsBySubcategorySlug(categorySlug, subCategorySlug);
   const baseFields =
-    Array.isArray(selectedCategory?.fields) && selectedCategory.fields.length > 0
-      ? selectedCategory.fields
-      : (CATEGORY_FIELD_PRESETS[canonicalCategorySlug] || []);
-  const subFields =
-    Array.isArray(selectedSub?.fields) && selectedSub.fields.length > 0
-      ? selectedSub.fields
-      : [];
-  const mergedFields = mergeFieldsByKey(baseFields, subFields);
-  const fallbackFields = getFallbackFieldsByCategorySlug(categorySlug, subCategorySlug);
-  const finalFields = mergedFields.length > 0 ? mergedFields : fallbackFields;
+    apiBase.length > 0
+      ? apiBase
+      : (fallbackBase.length > 0 ? fallbackBase : (CATEGORY_FIELD_PRESETS[canonicalCategorySlug] || []));
+  const subExtraFields = apiSubExtra.length > 0 ? apiSubExtra : fallbackSubExtra;
+  const finalFields = mergeFieldsByKey(baseFields, subExtraFields);
 
   // When subcategory/category changes: keep details but remove keys no longer in finalFields
   useEffect(() => {
     if (!categorySlug) return;
     const sel = categoryWithFields || categories.find((c) => c.slug === categorySlug);
-    const base =
-      Array.isArray(sel?.fields) && sel.fields.length > 0
-        ? sel.fields
-        : (CATEGORY_FIELD_PRESETS[canonicalSlug(categorySlug)] || []);
+    const apiBaseEff = Array.isArray(sel?.fields) ? sel.fields : [];
     const subs = sel?.subcategories || sel?.subs || [];
     const sub = subCategorySlug ? subs.find((s) => (s.slug || s) === subCategorySlug) : null;
-    const subF =
-      Array.isArray(sub?.fields) && sub.fields.length > 0 ? sub.fields : [];
-    const merged = mergeFieldsByKey(base, subF);
-    const fallback = getFallbackFieldsByCategorySlug(categorySlug, subCategorySlug);
-    const final = merged.length > 0 ? merged : fallback;
+    const apiSubEff = Array.isArray(sub?.fields) ? sub.fields : [];
+    const fallbackBaseEff = getBaseFieldsByCategorySlug(categorySlug);
+    const fallbackSubEff = getExtraFieldsBySubcategorySlug(categorySlug, subCategorySlug);
+    const baseEff = apiBaseEff.length > 0 ? apiBaseEff : (fallbackBaseEff.length > 0 ? fallbackBaseEff : (CATEGORY_FIELD_PRESETS[canonicalSlug(categorySlug)] || []));
+    const subEff = apiSubEff.length > 0 ? apiSubEff : fallbackSubEff;
+    const final = mergeFieldsByKey(baseEff, subEff);
     if (final.length === 0) {
       setDetails({});
       return;
@@ -265,26 +262,6 @@ const CreateAd = () => {
   const handleSubCategoryChange = (e) => {
     setSubCategorySlug(e.target.value);
     setValidationErrors((prev) => ({ ...prev, subCategory: null }));
-  };
-
-  const handleRefreshDetails = () => {
-    if (!categorySlug?.trim()) return;
-    setCategoryFieldsLoading(true);
-    getCategoryBySlug(categorySlug)
-      .then((res) => {
-        const cat = res?.data?.category ?? res?.data?.data ?? res?.data;
-        if (cat && (cat.fields == null || Array.isArray(cat.fields))) {
-          setCategoryWithFields(cat);
-        } else {
-          const fromList = categories.find((c) => c.slug === categorySlug);
-          setCategoryWithFields(fromList || cat || null);
-        }
-      })
-      .catch(() => {
-        const fromList = categories.find((c) => c.slug === categorySlug);
-        setCategoryWithFields(fromList || null);
-      })
-      .finally(() => setCategoryFieldsLoading(false));
   };
 
   const step1Active = title.trim().length >= 3 && description.trim().length >= 20 && price && Number(price) > 0;
@@ -519,35 +496,8 @@ const CreateAd = () => {
                       />
                     </div>
                   ) : (
-                    <div className="createad-details-empty-card card">
-                      <div className="createad-details-empty-icon" aria-hidden="true">
-                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                          <polyline points="14 2 14 8 20 8" />
-                          <line x1="16" y1="13" x2="8" y2="13" />
-                          <line x1="16" y1="17" x2="8" y2="17" />
-                          <polyline points="10 9 9 9 8 9" />
-                        </svg>
-                      </div>
-                      {availableSubcategories.length > 0 ? (
-                        <>
-                          <h4 className="createad-details-empty-title">Select a subcategory to unlock detailed criteria</h4>
-                          <p className="createad-details-empty-sub">Some categories have specific fields inside subcategories.</p>
-                        </>
-                      ) : (
-                        <>
-                          <h4 className="createad-details-empty-title">This category has no extra criteria</h4>
-                          <p className="createad-details-empty-sub">Continue with pricing and photos.</p>
-                          <button
-                            type="button"
-                            className="btn btn-secondary createad-details-empty-btn"
-                            onClick={handleRefreshDetails}
-                            disabled={loading || categoryFieldsLoading}
-                          >
-                            {categoryFieldsLoading ? 'Refreshing…' : 'Refresh details'}
-                          </button>
-                        </>
-                      )}
+                    <div className="createad-empty-details">
+                      No extra criteria for this category. Continue with pricing and photos.
                     </div>
                   )}
                 </section>
