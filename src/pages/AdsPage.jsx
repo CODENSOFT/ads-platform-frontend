@@ -12,22 +12,6 @@ const SORT_OPTIONS = [
   { value: '-price', label: 'Price: High to Low' },
 ];
 
-const getAdCategoryId = (ad) => {
-  const c = ad?.category;
-  if (!c) return '';
-  if (typeof c === 'string') return c;
-  if (typeof c === 'object') return String(c._id || c.id || '');
-  return '';
-};
-
-const getAdCategorySlug = (ad) => {
-  const c = ad?.category;
-  if (!c) return '';
-  if (typeof c === 'object') return String(c.slug || c.name || '').toLowerCase().trim();
-  if (typeof c === 'string') return '';
-  return '';
-};
-
 const normalizeSlug = (v) => {
   let s = String(v || '').toLowerCase().trim();
   s = s.replace(/\s+/g, '-');
@@ -52,20 +36,10 @@ const CATEGORY_SLUG_ALIASES = {
   'cat-jobs': ['cat-jobs', 'locuri-de-munca'],
 };
 
-const getAdSubCategorySlug = (ad) => {
-  const sub = ad?.subCategory;
-  if (ad?.subCategorySlug) return String(ad.subCategorySlug).toLowerCase().trim();
-  if (!sub) return '';
-  if (typeof sub === 'string') return sub.toLowerCase().trim();
-  if (typeof sub === 'object') return String(sub.slug || sub.name || '').toLowerCase().trim();
-  return '';
-};
-
 const AdsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { categories } = useCategories();
   const [loading, setLoading] = useState(true);
-  const [allAds, setAllAds] = useState([]);
   const [visibleAds, setVisibleAds] = useState([]);
   const [pagination, setPagination] = useState({
     page: 1,
@@ -75,11 +49,11 @@ const AdsPage = () => {
     hasPrev: false,
   });
 
-  const categoryIdParam = (searchParams.get('categoryId') || '').trim();
+  // Single source of truth = URL query params
   const categorySlugParam = (searchParams.get('category') || '').trim();
   const subCategorySlugParam = (
-    searchParams.get('subCategorySlug') ||
     searchParams.get('subCategory') ||
+    searchParams.get('subCategorySlug') ||
     searchParams.get('subCategoryId') ||
     ''
   ).trim();
@@ -90,30 +64,16 @@ const AdsPage = () => {
   const minPrice = searchParams.get('minPrice') || '';
   const maxPrice = searchParams.get('maxPrice') || '';
 
-  if (import.meta.env.DEV) {
-    console.log('FILTER', {
-      categoryIdParam,
-      categorySlugParam,
-      searchParam,
-      sampleAd: allAds[0],
-    });
-  }
-
+  // Fetch ads with server-side filtering only (no client-side filtering, no fetchLimit 10000)
   const fetchAds = useCallback(async () => {
     try {
       setLoading(true);
 
-      const shouldFetchAll = categoryIdParam || categorySlugParam || subCategorySlugParam;
-      const fetchLimit = shouldFetchAll ? 10000 : limit;
-      const fetchPage = shouldFetchAll ? 1 : page;
-
       const params = {
-        page: fetchPage,
-        limit: fetchLimit,
+        page,
+        limit,
         sort,
       };
-
-      if (categoryIdParam) params.categoryId = categoryIdParam;
       if (categorySlugParam) {
         params.category = categorySlugParam;
         params.categorySlug = categorySlugParam;
@@ -136,117 +96,32 @@ const AdsPage = () => {
       }
 
       const fetchedAds = Array.isArray(adsArray) ? adsArray : [];
-
-      if (import.meta.env.DEV) {
-        console.log('[AdsPage] Fetched ads:', {
-          count: fetchedAds.length,
-          categoryIdParam,
-          categorySlugParam,
-          shouldFetchAll,
-          sampleAd: fetchedAds[0],
-        });
-      }
-
-      setAllAds(fetchedAds);
+      setVisibleAds(fetchedAds);
 
       const paginationData = data?.pagination || {};
       setPagination({
-        page: shouldFetchAll ? 1 : (paginationData.page || page),
-        pages: shouldFetchAll ? 1 : (paginationData.pages || 1),
-        total: paginationData.total || fetchedAds.length,
-        hasNext: shouldFetchAll ? false : (paginationData.hasNext || false),
-        hasPrev: shouldFetchAll ? false : (paginationData.hasPrev || false),
+        page: paginationData.page ?? page,
+        pages: paginationData.pages ?? 1,
+        total: paginationData.total ?? fetchedAds.length,
+        hasNext: !!paginationData.hasNext,
+        hasPrev: !!paginationData.hasPrev,
       });
     } catch (err) {
       console.error('Failed to fetch ads:', err);
-      setAllAds([]);
+      setVisibleAds([]);
     } finally {
       setLoading(false);
     }
-  }, [page, limit, sort, minPrice, maxPrice, categoryIdParam, categorySlugParam, subCategorySlugParam, searchParam]);
+  }, [page, limit, sort, minPrice, maxPrice, categorySlugParam, subCategorySlugParam, searchParam]);
 
   useEffect(() => {
     fetchAds();
   }, [fetchAds]);
 
-  useEffect(() => {
-    let filtered = [...allAds];
-
-    if (categoryIdParam) {
-      filtered = filtered.filter((ad) => {
-        const adCategoryId = getAdCategoryId(ad);
-        const directCategoryId = String(ad?.categoryId || '');
-        const categoryObjId = String(ad?.category?._id || ad?.category?.id || '');
-        return (
-          adCategoryId === categoryIdParam ||
-          directCategoryId === categoryIdParam ||
-          categoryObjId === categoryIdParam
-        );
-      });
-    } else if (categorySlugParam) {
-      const slugNorm = normalizeSlug(categorySlugParam);
-      const acceptedSlugs = new Set([
-        slugNorm,
-        ...(CATEGORY_SLUG_ALIASES[slugNorm] || []),
-      ]);
-      filtered = filtered.filter((ad) => {
-        const adCategorySlug = normalizeSlug(getAdCategorySlug(ad));
-        const directSlug = normalizeSlug(ad?.categorySlug);
-        const categoryName = normalizeSlug(ad?.category?.name);
-        return (
-          (adCategorySlug && acceptedSlugs.has(adCategorySlug)) ||
-          (directSlug && acceptedSlugs.has(directSlug)) ||
-          (categoryName && acceptedSlugs.has(categoryName))
-        );
-      });
-    }
-
-    if (subCategorySlugParam) {
-      const slug = subCategorySlugParam.toLowerCase().trim();
-      filtered = filtered.filter((ad) => {
-        const extractedSlug = getAdSubCategorySlug(ad);
-        const subName = ad?.subCategory?.name ? String(ad.subCategory.name).toLowerCase().trim() : '';
-        return (
-          extractedSlug === slug ||
-          (extractedSlug && extractedSlug.includes(slug)) ||
-          subName === slug
-        );
-      });
-    }
-
-    if (searchParam) {
-      const query = searchParam.toLowerCase();
-      filtered = filtered.filter((ad) => {
-        const title = String(ad?.title || ad?.name || '').toLowerCase();
-        return title.includes(query);
-      });
-    }
-
-    if (categoryIdParam || categorySlugParam || subCategorySlugParam || searchParam) {
-      setPagination((prev) => ({
-        ...prev,
-        total: filtered.length,
-      }));
-    }
-
-    setVisibleAds(filtered);
-
-    if (import.meta.env.DEV) {
-      console.log('[AdsPage] Filtering:', {
-        totalAds: allAds.length,
-        filteredAds: filtered.length,
-        categoryIdParam,
-        categorySlugParam,
-        subCategorySlugParam,
-        searchParam,
-      });
-    }
-  }, [allAds, categoryIdParam, categorySlugParam, subCategorySlugParam, searchParam]);
-
   const handleFilterChange = (key, value) => {
     const newParams = new URLSearchParams(searchParams);
-    if (value) {
-      newParams.set(key, value);
+    if (value !== '' && value != null) {
+      newParams.set(key, String(value));
     } else {
       newParams.delete(key);
     }
@@ -256,10 +131,10 @@ const AdsPage = () => {
 
   const clearCategory = () => {
     const next = new URLSearchParams(searchParams);
-    next.delete('categoryId');
     next.delete('category');
-    next.delete('subCategorySlug');
+    next.delete('categoryId');
     next.delete('subCategory');
+    next.delete('subCategorySlug');
     next.delete('subCategoryId');
     next.delete('page');
     setSearchParams(next);
@@ -267,8 +142,8 @@ const AdsPage = () => {
 
   const clearSubCategory = () => {
     const next = new URLSearchParams(searchParams);
-    next.delete('subCategorySlug');
     next.delete('subCategory');
+    next.delete('subCategorySlug');
     next.delete('subCategoryId');
     next.delete('page');
     setSearchParams(next);
@@ -289,25 +164,21 @@ const AdsPage = () => {
     setSearchParams(newParams);
   };
 
-  const selectedCategory =
-    categoryIdParam
-      ? categories.find((c) => (c._id || c.id) === categoryIdParam)
-      : categorySlugParam
-        ? categories.find((c) => {
-            const cs = (c.slug || '').toLowerCase().trim();
-            const paramNorm = categorySlugParam.toLowerCase().trim();
-            if (cs === paramNorm) return true;
-            const accepted = CATEGORY_SLUG_ALIASES[normalizeSlug(categorySlugParam)];
-            return accepted && accepted.some((a) => normalizeSlug(a) === normalizeSlug(cs));
-          })
-        : null;
+  const selectedCategory = categorySlugParam
+    ? categories.find((c) => {
+        const cs = (c.slug || '').toLowerCase().trim();
+        const paramNorm = categorySlugParam.toLowerCase().trim();
+        if (cs === paramNorm) return true;
+        const accepted = CATEGORY_SLUG_ALIASES[normalizeSlug(categorySlugParam)];
+        return accepted && accepted.some((a) => normalizeSlug(a) === normalizeSlug(cs));
+      })
+    : null;
   const selectedCategoryName = capitalizeWords(
     selectedCategory?.name || selectedCategory?.label || ''
   ) || null;
   const displayCategoryName =
     selectedCategoryName ||
     (categorySlugParam ? capitalizeWords(categorySlugParam.replace(/-/g, ' ')) : '') ||
-    categoryIdParam ||
     '';
   const availableSubcategories = selectedCategory?.subcategories || selectedCategory?.subs || [];
   const selectedSubcategory =
@@ -321,7 +192,7 @@ const AdsPage = () => {
   ) || subCategorySlugParam;
 
   const hasActiveFilters =
-    categoryIdParam || categorySlugParam || subCategorySlugParam || searchParam;
+    categorySlugParam || subCategorySlugParam || searchParam || minPrice || maxPrice;
 
   return (
     <div className="ads-page">
@@ -330,7 +201,8 @@ const AdsPage = () => {
           <div className="ads-header__left">
             <h1 className="ads-title">{displayCategoryName || 'All Ads'}</h1>
             <p className="ads-subtitle">
-              {visibleAds.length} {visibleAds.length === 1 ? 'result' : 'results'}
+              {pagination.total != null ? pagination.total : visibleAds.length}{' '}
+              {(pagination.total != null ? pagination.total : visibleAds.length) === 1 ? 'result' : 'results'}
             </p>
           </div>
           <div className="ads-header__sort">
@@ -354,7 +226,7 @@ const AdsPage = () => {
 
         {hasActiveFilters && (
           <div className="ads-chips">
-            {(categoryIdParam || categorySlugParam) && (
+            {categorySlugParam && (
               <span className="ads-chip">
                 Category: {displayCategoryName}
                 <button
@@ -410,37 +282,17 @@ const AdsPage = () => {
                 </label>
                 <select
                   id="ads-category"
-                  value={categoryIdParam || categorySlugParam || ''}
+                  value={categorySlugParam}
                   onChange={(e) => {
-                    const value = e.target.value;
-                    if (value) {
-                      const selectedCat = categories.find(
-                        (c) =>
-                          (c._id || c.id) === value ||
-                          (c.slug || '').toLowerCase() === value.toLowerCase()
-                      );
-                      if (selectedCat) {
-                        const catId = selectedCat._id || selectedCat.id || '';
-                        const catSlug = (selectedCat.slug || '').trim();
-                        if (catId) {
-                          const newParams = new URLSearchParams(searchParams);
-                          newParams.set('categoryId', catId);
-                          if (catSlug) newParams.set('category', catSlug);
-                          newParams.delete('subCategorySlug');
-                          newParams.delete('subCategory');
-                          newParams.delete('subCategoryId');
-                          newParams.delete('page');
-                          setSearchParams(newParams);
-                        } else if (catSlug) {
-                          const newParams = new URLSearchParams(searchParams);
-                          newParams.set('category', catSlug);
-                          newParams.delete('subCategorySlug');
-                          newParams.delete('subCategory');
-                          newParams.delete('subCategoryId');
-                          newParams.delete('page');
-                          setSearchParams(newParams);
-                        }
-                      }
+                    const slug = (e.target.value || '').trim();
+                    if (slug) {
+                      const newParams = new URLSearchParams(searchParams);
+                      newParams.set('category', slug);
+                      newParams.delete('subCategory');
+                      newParams.delete('subCategorySlug');
+                      newParams.delete('subCategoryId');
+                      newParams.delete('page');
+                      setSearchParams(newParams);
                     } else {
                       clearCategory();
                     }
@@ -449,11 +301,10 @@ const AdsPage = () => {
                 >
                   <option value="">All Categories</option>
                   {categories.map((cat) => {
-                    const catId = cat._id || cat.id || '';
                     const catSlug = (cat.slug || '').trim();
-                    const value = catId || catSlug;
+                    if (!catSlug) return null;
                     return (
-                      <option key={catId || catSlug} value={value}>
+                      <option key={catSlug} value={catSlug}>
                         {capitalizeWords(cat.name || cat.label)}
                       </option>
                     );
@@ -470,12 +321,10 @@ const AdsPage = () => {
                     id="ads-subcategory"
                     value={subCategorySlugParam}
                     onChange={(e) => {
-                      const value = e.target.value.trim();
+                      const value = (e.target.value || '').trim();
                       if (value) {
                         const newParams = new URLSearchParams(searchParams);
-                        newParams.set('subCategorySlug', value);
-                        newParams.delete('subCategory');
-                        newParams.delete('subCategoryId');
+                        newParams.set('subCategory', value);
                         newParams.delete('page');
                         setSearchParams(newParams);
                       } else {

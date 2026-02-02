@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getAdById } from '../api/endpoints';
+import { getAdById, getCategoryBySlug } from '../api/endpoints';
 import { startChat } from '../api/chatApi';
 import { useAuth } from '../auth/useAuth.js';
 import { useToast } from '../hooks/useToast';
 import { parseError } from '../utils/errorParser';
 import { buildAdShareUrl } from '../utils/shareUrl';
+import { capitalizeWords } from '../utils/text';
 import '../styles/ad-details.css';
 
 const AdDetails = () => {
@@ -18,6 +19,7 @@ const AdDetails = () => {
   const [ad, setAd] = useState(null);
   const [mainImageIndex, setMainImageIndex] = useState(0);
   const [contacting, setContacting] = useState(false);
+  const [categorySchema, setCategorySchema] = useState(null);
 
   useEffect(() => {
     const fetchAd = async () => {
@@ -46,6 +48,29 @@ const AdDetails = () => {
       fetchAd();
     }
   }, [id]);
+
+  useEffect(() => {
+    if (!ad) {
+      setCategorySchema(null);
+      return;
+    }
+    const slug = ad.category?.slug || ad.categorySlug || (typeof ad.category === 'string' ? ad.category : '');
+    if (!slug || !String(slug).trim()) {
+      setCategorySchema(null);
+      return;
+    }
+    let cancelled = false;
+    getCategoryBySlug(slug)
+      .then((res) => {
+        if (cancelled) return;
+        const cat = res?.data?.category ?? res?.data?.data ?? res?.data;
+        setCategorySchema(cat?.fields && Array.isArray(cat.fields) ? cat : null);
+      })
+      .catch(() => {
+        if (!cancelled) setCategorySchema(null);
+      });
+    return () => { cancelled = true; };
+  }, [ad]);
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
@@ -327,6 +352,37 @@ const AdDetails = () => {
             <p className="ad-description">{ad.description}</p>
           </div>
         )}
+
+        {(() => {
+          const attrs = ad.attributes && typeof ad.attributes === 'object' && !Array.isArray(ad.attributes) ? ad.attributes : {};
+          const fields = categorySchema?.fields || [];
+          const rows = fields
+            .map((field) => {
+              const key = field.key || field.name;
+              if (!key) return null;
+              const val = attrs[key];
+              if (val === undefined || val === null || (typeof val === 'string' && !val.trim())) return null;
+              const label = field.label || capitalizeWords(String(key).replace(/-/g, ' '));
+              const displayVal = field.type === 'boolean' ? (val ? 'Yes' : 'No') : String(val);
+              const unit = field.unit ? ` ${field.unit}` : '';
+              return { label, value: displayVal + unit };
+            })
+            .filter(Boolean);
+          if (rows.length === 0) return null;
+          return (
+            <div className="ad-specs-card">
+              <h2 className="ad-section-title">Specifications</h2>
+              <dl className="ad-specs-list">
+                {rows.map((row, idx) => (
+                  <div key={idx} className="ad-specs-row">
+                    <dt className="ad-specs-label">{row.label}</dt>
+                    <dd className="ad-specs-value">{row.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

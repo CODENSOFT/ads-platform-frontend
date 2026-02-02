@@ -218,13 +218,8 @@ const Home = () => {
 
   const handleCategoryClick = (category) => {
     const slug = (category.slug || '').trim();
-    const realCategoryId = category.realCategoryId && isMongoObjectId(category.realCategoryId)
-      ? category.realCategoryId
-      : null;
-    const query = realCategoryId
-      ? `?category=${encodeURIComponent(slug)}&categoryId=${encodeURIComponent(realCategoryId)}`
-      : `?category=${encodeURIComponent(slug)}`;
-    navigate(`/ads${query}`);
+    if (!slug) return;
+    navigate(`/ads?category=${encodeURIComponent(slug)}`);
   };
 
   const categoriesToRender = displayCategories;

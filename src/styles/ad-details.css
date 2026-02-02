@@ -115,7 +115,9 @@
   margin: 0;
   font: inherit;
   line-height: 1;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
 }
 
 .ad-thumb:hover {
@@ -297,6 +299,57 @@
   line-height: 1.7;
   white-space: pre-wrap;
   margin: 0;
+}
+
+/* Specifications card */
+.ad-specs-card {
+  margin-top: 32px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+  padding: 28px;
+}
+
+.ad-specs-list {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ad-specs-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: baseline;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.ad-specs-row:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.ad-specs-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #64748b;
+  margin: 0;
+}
+
+.ad-specs-value {
+  font-size: 15px;
+  font-weight: 500;
+  color: #0f172a;
+  margin: 0;
+}
+
+@media (max-width: 600px) {
+  .ad-specs-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* State cards (loading / error / not found) */

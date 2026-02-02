@@ -32,7 +32,7 @@ const Navbar = () => {
       return;
     }
     sessionStorage.setItem('last_ads_search', q);
-    navigate(`/ads?search=${encodeURIComponent(q)}`);
+    navigate(`/ads?search=${encodeURIComponent(q)}&page=1`);
   };
 
   // Fetch unread count on mount and poll every 30s (throttled)

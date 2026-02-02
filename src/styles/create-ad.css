@@ -161,7 +161,7 @@
 }
 
 .createad-tips-list li::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 0;
   top: 10px;
@@ -266,7 +266,7 @@
 }
 
 .createad-field__label--required::after {
-  content: ' *';
+  content: " *";
   color: #dc2626;
 }
 
@@ -301,7 +301,9 @@
   background: #fff;
   font-size: 15px;
   color: #0f172a;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
   outline: none;
 }
 
@@ -332,6 +334,43 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
+}
+
+/* Dynamic fields (Specifications) */
+.dynamic-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.dynamic-fields__checkbox-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.dynamic-fields__checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: #2563eb;
+}
+
+.dynamic-fields__number-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dynamic-fields__number-wrap .createad-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.dynamic-fields__unit {
+  font-size: 14px;
+  color: #64748b;
+  font-weight: 500;
 }
 
 @media (max-width: 600px) {

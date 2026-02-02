@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getAdById, updateAd, updateAdFormData } from '../api/endpoints';
+import { getAdById, updateAd, updateAdFormData, getCategoryBySlug } from '../api/endpoints';
 import useCategories from '../hooks/useCategories';
 import ImageUploader from '../components/ImageUploader';
+import DynamicFields from '../components/DynamicFields';
 import { useToast } from '../hooks/useToast';
 import { parseError } from '../utils/errorParser';
 import { capitalizeWords } from '../utils/text';
@@ -28,6 +29,8 @@ const EditAd = () => {
   const [subCategorySlug, setSubCategorySlug] = useState('');
   const [newImages, setNewImages] = useState([]);
   const [validationErrors, setValidationErrors] = useState({});
+  const [attributes, setAttributes] = useState({});
+  const [categoryWithFields, setCategoryWithFields] = useState(null);
 
   const adId = useMemo(() => (ad?._id || ad?.id || id || '').trim(), [ad, id]);
 
@@ -57,6 +60,13 @@ const EditAd = () => {
           '';
         setCategorySlug(catSlug);
         setSubCategorySlug(subSlug);
+
+        const attrs = adData?.attributes;
+        setAttributes(
+          attrs && typeof attrs === 'object' && !Array.isArray(attrs)
+            ? { ...attrs }
+            : {}
+        );
       } catch (err) {
         const message = err?.response?.data?.message || err.message || 'Failed to load ad';
         setError(message);
@@ -67,6 +77,35 @@ const EditAd = () => {
 
     if (id) fetchAd();
   }, [id]);
+
+  // Load category schema (with fields) when categorySlug is set
+  useEffect(() => {
+    setCategoryWithFields(null);
+    if (!categorySlug || !categorySlug.trim()) return;
+
+    const fromList = categories.find((c) => c.slug === categorySlug);
+    const hasFields = fromList?.fields && Array.isArray(fromList.fields) && fromList.fields.length > 0;
+    if (hasFields) {
+      setCategoryWithFields(fromList);
+      return;
+    }
+
+    let cancelled = false;
+    getCategoryBySlug(categorySlug)
+      .then((res) => {
+        if (cancelled) return;
+        const cat = res?.data?.category ?? res?.data?.data ?? res?.data;
+        if (cat && (cat.fields == null || Array.isArray(cat.fields))) {
+          setCategoryWithFields(cat);
+        } else {
+          setCategoryWithFields(fromList || cat || null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setCategoryWithFields(fromList || null);
+      });
+    return () => { cancelled = true; };
+  }, [categorySlug, categories]);
 
   const selectedCategory = useMemo(
     () => categories.find((c) => c.slug === categorySlug),
@@ -93,6 +132,16 @@ const EditAd = () => {
 
     if (!categorySlug || !categorySlug.trim()) errors.category = 'Category is required';
 
+    const fields = categoryWithFields?.fields || [];
+    fields.forEach((field) => {
+      if (!field.required) return;
+      const key = field.key || field.name;
+      if (!key) return;
+      const val = attributes[key];
+      const empty = val === undefined || val === null || (typeof val === 'string' && !val.trim());
+      if (empty) errors[`attr_${key}`] = `${field.label || key} is required`;
+    });
+
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -101,7 +150,12 @@ const EditAd = () => {
     const newSlug = e.target.value;
     setCategorySlug(newSlug);
     setSubCategorySlug('');
-    setValidationErrors((prev) => ({ ...prev, category: null, subCategory: null }));
+    setAttributes({});
+    setValidationErrors((prev) => {
+      const next = { ...prev, category: null, subCategory: null };
+      Object.keys(next).forEach((k) => { if (k.startsWith('attr_')) delete next[k]; });
+      return next;
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -123,12 +177,16 @@ const EditAd = () => {
         price: Number(price),
         currency,
         categorySlug: categorySlug.trim(),
+        attributes,
       };
       if (subCategorySlug && subCategorySlug.trim()) payload.subCategorySlug = subCategorySlug.trim();
 
       if (newImages.length > 0) {
         const formData = new FormData();
-        Object.entries(payload).forEach(([k, v]) => formData.append(k, String(v)));
+        Object.entries(payload).forEach(([k, v]) => {
+          if (k === 'attributes') formData.append(k, JSON.stringify(v));
+          else formData.append(k, String(v));
+        });
         Array.from(newImages).forEach((file) => formData.append('images', file));
         await updateAdFormData(adId, formData);
       } else {
@@ -447,6 +505,26 @@ const EditAd = () => {
                   </div>
                 )}
               </section>
+
+              {categorySlug && (categoryWithFields?.fields?.length > 0) && (
+                <section className="editad-section">
+                  <h3 className="editad-section-title">Specifications</h3>
+                  <p className="editad-section-sub">Category-specific details</p>
+                  <DynamicFields
+                    fields={categoryWithFields.fields}
+                    value={attributes}
+                    onChange={setAttributes}
+                    errors={Object.fromEntries(
+                      (categoryWithFields.fields || [])
+                        .filter((f) => (f.key || f.name) && validationErrors[`attr_${f.key || f.name}`])
+                        .map((f) => [(f.key || f.name), validationErrors[`attr_${f.key || f.name}`]])
+                    )}
+                    disabled={saving}
+                    fieldClassName="editad-field"
+                    inputClassName="editad-input"
+                  />
+                </section>
+              )}
 
               <section className="editad-section">
                 <h3 className="editad-section-title">Images</h3>

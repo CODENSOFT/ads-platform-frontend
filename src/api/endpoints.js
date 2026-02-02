@@ -77,3 +77,8 @@ export const getCategories = () => {
   return api.get('/categories');
 };
 
+export const getCategoryBySlug = (slug) => {
+  if (!slug || !String(slug).trim()) return Promise.resolve({ data: null });
+  return api.get(`/categories/${encodeURIComponent(String(slug).trim())}`);
+};
+
